@@ -1,0 +1,154 @@
+<UserControl
+    x:Class="PulsePal.App.Controls.CompanionAvatar"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    AutomationProperties.Name="Nova, Calm strategist. Companion state: Normal"
+    AutomationProperties.AccessibilityView="Content">
+    <UserControl.Resources>
+        <SolidColorBrush x:Key="AccentBrush" Color="#67E8F9" />
+        <SolidColorBrush x:Key="EyeBrush" Color="#8CF5FF" />
+        <SolidColorBrush x:Key="IdentityBrush" Color="#67E8F9" />
+        <LinearGradientBrush x:Key="HairBrush" StartPoint="0,0" EndPoint="0.7,1">
+            <GradientStop Color="#C6FFFF" Offset="0" />
+            <GradientStop Color="#48DFEE" Offset="0.35" />
+            <GradientStop Color="#167C9E" Offset="0.8" />
+            <GradientStop Color="#16415F" Offset="1" />
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="LumiHairBrush" StartPoint="0,0" EndPoint="0.8,1">
+            <GradientStop Color="#E1F5FF" Offset="0" />
+            <GradientStop Color="#A9C7FF" Offset="0.4" />
+            <GradientStop Color="#587CB9" Offset="0.8" />
+            <GradientStop Color="#294B7C" Offset="1" />
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="KairoHairBrush" StartPoint="0,0" EndPoint="1,0.8">
+            <GradientStop Color="#B5F7FF" Offset="0" />
+            <GradientStop Color="#55B8FF" Offset="0.35" />
+            <GradientStop Color="#2577C9" Offset="0.7" />
+            <GradientStop Color="#173E70" Offset="1" />
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="FaceBrush" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#305B74" Offset="0" />
+            <GradientStop Color="#18364F" Offset="0.6" />
+            <GradientStop Color="#101F36" Offset="1" />
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="SuitBrush" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#245570" Offset="0" />
+            <GradientStop Color="#101C30" Offset="1" />
+        </LinearGradientBrush>
+    </UserControl.Resources>
+    <Viewbox Stretch="Uniform" MaxWidth="240" MaxHeight="214">
+        <Grid Width="180" Height="160" Background="Transparent">
+            <!-- Original vector artwork; replaceable independently of the public API. -->
+            <Canvas x:Name="BreathingRing" Width="180" Height="140" VerticalAlignment="Top" IsHitTestVisible="False">
+                <Ellipse Canvas.Left="29" Canvas.Top="10" Width="122" Height="122" Stroke="{StaticResource AccentBrush}" StrokeThickness="13" Opacity="0.035" />
+                <Ellipse Canvas.Left="29" Canvas.Top="10" Width="122" Height="122" Stroke="{StaticResource AccentBrush}" StrokeThickness="5" Opacity="0.09" />
+                <Ellipse Canvas.Left="29" Canvas.Top="10" Width="122" Height="122" Stroke="{StaticResource AccentBrush}" StrokeThickness="1" Opacity="0.45" />
+                <Path Data="M 30,58 A 63,63 0 0 1 64,15 M 120,126 A 63,63 0 0 0 152,79" Stroke="{StaticResource AccentBrush}" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                <Ellipse Canvas.Left="23" Canvas.Top="67" Width="4" Height="4" Fill="{StaticResource AccentBrush}" />
+                <Ellipse Canvas.Left="150" Canvas.Top="38" Width="3" Height="3" Fill="{StaticResource AccentBrush}" />
+            </Canvas>
+            <Canvas x:Name="AvatarArtwork" Width="180" Height="140" VerticalAlignment="Top" IsHitTestVisible="False">
+                <Ellipse Canvas.Left="49" Canvas.Top="128" Width="82" Height="7" Fill="#081323" Opacity="0.7" />
+                <!-- Back hair, shoulders, collar and luminous chest core. -->
+                <Path x:Name="NovaBackHair" Data="M 51,83 L 41,77 46,56 38,50 55,39 50,27 70,30 83,14 93,25 116,18 115,32 133,31 128,47 141,52 132,66 136,84 121,79 116,101 62,101 Z" Fill="#123D57" Stroke="#2D8099" StrokeThickness="1" />
+                <Canvas x:Name="LumiBackHair" Visibility="Collapsed">
+                    <Path Data="M 49,64 C 43,33 65,22 88,24 C 117,18 135,39 130,67 C 125,87 139,106 143,118 Q 132,137 116,124 Q 101,134 91,122 Q 72,138 59,125 Q 41,130 35,116 C 52,101 40,86 49,64 Z" Fill="{StaticResource LumiHairBrush}" Stroke="#A9C7FF" StrokeThickness="1" />
+                    <Path Data="M 53,69 C 43,90 62,107 47,119 M 124,69 C 119,94 136,110 126,122 M 64,95 Q 75,115 63,124" Stroke="#D5E7FF" StrokeThickness="1.5" Opacity="0.45" StrokeStartLineCap="Round" />
+                </Canvas>
+                <Canvas x:Name="KairoBackHair" Visibility="Collapsed">
+                    <Path Data="M 49,76 L 43,52 Q 49,31 71,29 L 80,19 95,28 121,24 117,35 Q 137,44 130,77 L 120,91 60,91 Z" Fill="#173E70" Stroke="#358BD0" StrokeThickness="1" />
+                    <Path Data="M 47,75 C 39,14 141,14 133,75" Stroke="#0B253D" StrokeThickness="8" />
+                    <Path Data="M 47,75 C 39,14 141,14 133,75" Stroke="{StaticResource IdentityBrush}" StrokeThickness="2" />
+                </Canvas>
+                <Path Data="M 48,131 Q 49,113 70,109 L 78,104 102,104 111,109 Q 132,112 134,131 Q 90,138 48,131 Z" Fill="{StaticResource SuitBrush}" Stroke="#376A81" StrokeThickness="1" />
+                <Path Data="M 78,96 L 78,110 Q 90,121 102,110 L 102,96 Z" Fill="#274A62" />
+                <Path Data="M 69,110 L 81,124 90,117 99,124 111,110 M 58,121 L 70,125 M 111,125 L 123,121" Stroke="{StaticResource AccentBrush}" StrokeThickness="1.5" Opacity="0.8" />
+                <Path Data="M 90,122 L 95,127 90,132 85,127 Z" Fill="{StaticResource AccentBrush}" />
+                <Ellipse Canvas.Left="49" Canvas.Top="66" Width="13" Height="23" Fill="#244E68" Stroke="#47C9DE" StrokeThickness="1" />
+                <Ellipse Canvas.Left="118" Canvas.Top="66" Width="13" Height="23" Fill="#244E68" Stroke="#47C9DE" StrokeThickness="1" />
+                <Path Data="M 58,55 Q 90,34 122,55 L 121,84 Q 118,105 90,114 Q 62,105 59,84 Z" Fill="{StaticResource FaceBrush}" Stroke="#5293AA" StrokeThickness="1" />
+                <Path Data="M 53,72 L 53,82 M 127,72 L 127,82 M 61,89 L 66,94 72,94 M 119,89 L 114,94 108,94" Stroke="{StaticResource AccentBrush}" StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Opacity="0.8" />
+                <Canvas x:Name="OpenEyes">
+                    <Ellipse Canvas.Left="64" Canvas.Top="67" Width="22" Height="23" Fill="#081A2B" />
+                    <Ellipse Canvas.Left="94" Canvas.Top="67" Width="22" Height="23" Fill="#081A2B" />
+                    <Ellipse Canvas.Left="68" Canvas.Top="69" Width="15" Height="19" Fill="{StaticResource EyeBrush}" />
+                    <Ellipse Canvas.Left="97" Canvas.Top="69" Width="15" Height="19" Fill="{StaticResource EyeBrush}" />
+                    <Ellipse Canvas.Left="73" Canvas.Top="73" Width="7" Height="12" Fill="#12354C" />
+                    <Ellipse Canvas.Left="100" Canvas.Top="73" Width="7" Height="12" Fill="#12354C" />
+                    <Ellipse Canvas.Left="70" Canvas.Top="70" Width="6" Height="6" Fill="#F2FFFF" />
+                    <Ellipse Canvas.Left="98" Canvas.Top="70" Width="6" Height="6" Fill="#F2FFFF" />
+                    <Ellipse Canvas.Left="78" Canvas.Top="82" Width="3" Height="3" Fill="#E2FFFF" />
+                    <Ellipse Canvas.Left="106" Canvas.Top="82" Width="3" Height="3" Fill="#E2FFFF" />
+                </Canvas>
+                <Path x:Name="JoyEyes" Visibility="Collapsed" Data="M 66,81 Q 75,66 84,81 M 96,81 Q 105,66 114,81" Stroke="{StaticResource EyeBrush}" StrokeThickness="3" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                <Canvas x:Name="FocusedEyes" Visibility="Collapsed">
+                    <Path Data="M 65,74 L 85,77 Q 80,89 69,84 Z M 95,77 L 115,74 111,84 Q 100,89 95,77 Z" Fill="{StaticResource EyeBrush}" />
+                    <Path Data="M 76,78 L 76,83 M 104,78 L 104,83" Stroke="#12354C" StrokeThickness="4" StrokeEndLineCap="Round" />
+                </Canvas>
+                <Canvas x:Name="ThinkingEyes" Visibility="Collapsed">
+                    <Ellipse Canvas.Left="66" Canvas.Top="72" Width="19" Height="16" Fill="{StaticResource EyeBrush}" />
+                    <Ellipse Canvas.Left="96" Canvas.Top="72" Width="19" Height="16" Fill="{StaticResource EyeBrush}" />
+                    <Ellipse Canvas.Left="77" Canvas.Top="73" Width="6" Height="10" Fill="#12354C" />
+                    <Ellipse Canvas.Left="107" Canvas.Top="73" Width="6" Height="10" Fill="#12354C" />
+                </Canvas>
+                <Path x:Name="RestingEyes" Visibility="Collapsed" Data="M 66,79 Q 75,88 84,79 M 96,79 Q 105,88 114,79" Stroke="{StaticResource EyeBrush}" StrokeThickness="2.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                <Path x:Name="RelaxedBrows" Data="M 65,64 Q 74,60 83,64 M 97,64 Q 106,60 115,64" Stroke="#9CDBE9" StrokeThickness="1.5" />
+                <Path x:Name="ConcernedBrows" Visibility="Collapsed" Data="M 65,65 Q 76,65 83,59 M 97,59 Q 104,65 115,65" Stroke="#D4E7EF" StrokeThickness="2" />
+                <Path x:Name="ThinkingBrows" Visibility="Collapsed" Data="M 65,66 L 83,66 M 97,61 Q 106,56 115,61" Stroke="#D4E7EF" StrokeThickness="1.5" />
+                <Path Data="M 89,87 L 87,91 91,92" Stroke="#5A8AA2" StrokeThickness="1" />
+                <Path x:Name="NormalMouth" Data="M 82,99 Q 90,104 98,99" Stroke="#B5F4F8" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                <Path x:Name="FocusedMouth" Visibility="Collapsed" Data="M 84,101 L 96,101" Stroke="#B5F4F8" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                <Path x:Name="HappyMouth" Visibility="Collapsed" Data="M 81,97 Q 90,101 99,97 Q 97,108 90,108 Q 83,108 81,97 Z" Fill="#0A1C30" Stroke="#B5F4F8" StrokeThickness="1.5" />
+                <Path x:Name="EncouragingMouth" Visibility="Collapsed" Data="M 80,98 Q 88,108 101,97" Stroke="#D0FFF0" StrokeThickness="2.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                <Path x:Name="ConcernedMouth" Visibility="Collapsed" Data="M 83,103 Q 90,97 97,103" Stroke="#FDE3BB" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                <Path x:Name="ThinkingMouth" Visibility="Collapsed" Data="M 87,102 Q 93,100 98,102" Stroke="#E7DEFF" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                <Path x:Name="CelebratingMouth" Visibility="Collapsed" Data="M 80,97 L 100,97 Q 98,109 90,109 Q 82,109 80,97 Z" Fill="#E5FFFF" Stroke="#8EEBF4" StrokeThickness="1" />
+                <Path x:Name="RestingMouth" Visibility="Collapsed" Data="M 85,101 Q 90,104 95,101" Stroke="#C6D5FF" StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                <Canvas x:Name="Blush" Visibility="Collapsed" Opacity="0.4">
+                    <Ellipse Canvas.Left="64" Canvas.Top="89" Width="12" Height="5" Fill="#EAB2D8" />
+                    <Ellipse Canvas.Left="104" Canvas.Top="89" Width="12" Height="5" Fill="#EAB2D8" />
+                </Canvas>
+                <!-- Asymmetric cyan fringe and original star-shaped crown. -->
+                <Canvas x:Name="NovaAppearance">
+                    <Path Data="M 52,68 L 47,51 60,41 57,28 74,33 84,18 93,30 113,23 109,36 129,34 123,49 131,59 121,72 114,55 103,63 98,47 84,64 85,47 68,67 72,49 59,58 Z" Fill="{StaticResource HairBrush}" Stroke="#73E8F2" StrokeThickness="1" StrokeLineJoin="Round" />
+                    <Path Data="M 61,46 L 78,38 71,53 M 85,37 L 89,29 93,37 M 99,40 L 112,32 106,47 M 116,45 L 122,41" Stroke="#C5FFFF" StrokeThickness="1.3" Opacity="0.75" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                    <Path Data="M 88,52 L 92,48 96,52 92,57 Z" Fill="{StaticResource IdentityBrush}" Opacity="0.9" />
+                </Canvas>
+                <!-- All fringes leave the shared expression area clear. Identity colors never follow emotion. -->
+                <Canvas x:Name="LumiAppearance" Visibility="Collapsed">
+                    <Path Data="M 52,76 C 39,48 54,26 79,27 C 108,17 131,33 129,55 Q 129,74 121,88 Q 125,65 113,49 C 103,59 92,62 82,58 Q 99,48 99,40 C 87,54 71,61 61,56 Q 56,68 58,86 Q 50,91 48,99 Q 45,85 52,76 Z" Fill="{StaticResource LumiHairBrush}" Stroke="#CADFFF" StrokeThickness="1" />
+                    <Path Data="M 57,49 Q 68,31 92,33 M 64,54 Q 82,51 91,42 M 111,34 Q 124,44 122,58" Stroke="#E1F5FF" StrokeThickness="1.5" Opacity="0.7" StrokeStartLineCap="Round" />
+                    <Path Data="M 126,43 C 111,39 109,56 121,60 Q 128,62 132,55 C 121,59 116,48 126,43 Z" Fill="#EDF6FF" Stroke="{StaticResource IdentityBrush}" StrokeThickness="1" />
+                    <Ellipse Canvas.Left="125" Canvas.Top="63" Width="4" Height="4" Fill="{StaticResource IdentityBrush}" />
+                    <Path Data="M 68,110 Q 90,126 112,110 L 108,122 Q 90,135 72,122 Z" Fill="#395E8C" Stroke="{StaticResource IdentityBrush}" StrokeThickness="1" />
+                    <Path Data="M 75,116 Q 90,126 105,116" Stroke="#D3E5FF" StrokeThickness="1.5" />
+                    <Ellipse Canvas.Left="87" Canvas.Top="123" Width="6" Height="6" Fill="#E1F5FF" />
+                </Canvas>
+                <Canvas x:Name="KairoAppearance" Visibility="Collapsed">
+                    <Path Data="M 51,68 L 47,47 Q 56,31 76,33 L 72,23 Q 94,30 117,17 L 112,29 132,25 Q 128,43 113,47 L 126,44 119,60 108,54 Q 84,63 65,55 L 59,73 57,57 Z" Fill="{StaticResource KairoHairBrush}" Stroke="#87DEFF" StrokeThickness="1" StrokeLineJoin="Round" />
+                    <Path Data="M 59,46 Q 87,46 118,29 M 71,51 Q 92,54 111,44 M 87,34 L 102,30" Stroke="#BCF5FF" StrokeThickness="2" Opacity="0.8" StrokeStartLineCap="Round" />
+                    <Border Canvas.Left="43" Canvas.Top="65" Width="15" Height="26" CornerRadius="6" Background="#102C49" BorderBrush="{StaticResource IdentityBrush}" BorderThickness="2">
+                        <Rectangle Width="4" Height="14" RadiusX="2" RadiusY="2" Fill="#A2F3FF" />
+                    </Border>
+                    <Border Canvas.Left="122" Canvas.Top="65" Width="15" Height="26" CornerRadius="6" Background="#102C49" BorderBrush="{StaticResource IdentityBrush}" BorderThickness="2">
+                        <Rectangle Width="4" Height="14" RadiusX="2" RadiusY="2" Fill="#A2F3FF" />
+                    </Border>
+                    <Path Data="M 130,89 Q 129,106 111,106" Stroke="{StaticResource IdentityBrush}" StrokeThickness="2.5" StrokeStartLineCap="Round" />
+                    <Rectangle Canvas.Left="105" Canvas.Top="103" Width="10" Height="5" RadiusX="2.5" RadiusY="2.5" Fill="#B5F7FF" />
+                    <Path Data="M 58,114 L 72,119 68,130 53,126 Z M 113,115 L 126,121 122,128 109,123 Z" Fill="#245E98" Stroke="{StaticResource IdentityBrush}" StrokeThickness="1" />
+                    <Path Data="M 61,120 L 67,122 M 115,120 L 120,123" Stroke="#A2F3FF" StrokeThickness="2" StrokeStartLineCap="Round" />
+                </Canvas>
+                <Canvas x:Name="CelebrationSparks" Visibility="Collapsed">
+                    <Path Data="M 27,31 L 29,25 31,31 37,33 31,35 29,41 27,35 21,33 Z M 148,94 L 150,88 152,94 158,96 152,98 150,104 148,98 142,96 Z" Fill="{StaticResource AccentBrush}" />
+                    <Path Data="M 144,22 L 147,27 M 34,101 L 30,106 M 155,63 L 161,60" Stroke="#FFE5AD" StrokeThickness="2.5" StrokeStartLineCap="Round" />
+                </Canvas>
+                <Border Canvas.Left="135" Canvas.Top="14" MinWidth="27" Height="25" Background="#E6112034" BorderBrush="{StaticResource AccentBrush}" BorderThickness="1" CornerRadius="10">
+                    <TextBlock x:Name="EmoteText" Text="✦" FontFamily="Segoe UI Symbol" FontSize="14" Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+            </Canvas>
+            <Border HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,1" Height="22" MinWidth="112" Padding="10,0" CornerRadius="11" Background="#F0102032" BorderBrush="{StaticResource AccentBrush}" BorderThickness="1">
+                <TextBlock x:Name="StateBadge" Text="NORMAL" FontSize="10" FontWeight="SemiBold" CharacterSpacing="110" Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
+            </Border>
+        </Grid>
+    </Viewbox>
+</UserControl>

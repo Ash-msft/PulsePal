@@ -1,0 +1,13 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="PulsePal.App/PulsePal.App.csproj">
+    <Platform Project="x64" />
+  </Project>
+  <Project Path="PulsePal.Core/PulsePal.Core.csproj" />
+  <Project Path="PulsePal.Infrastructure/PulsePal.Infrastructure.csproj" />
+  <Project Path="PulsePal.Tests/PulsePal.Tests.csproj" />
+</Solution>

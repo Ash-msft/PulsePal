@@ -1,0 +1,96 @@
+<Window
+    x:Class="PulsePal.App.CompanionWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:PulsePal.App.Controls">
+    <Grid x:Name="Root" RequestedTheme="Dark" Background="#0B1528">
+        <Border x:Name="Card" CornerRadius="22" BorderThickness="1" Padding="20,14"
+                BorderBrush="#5586E7FF" Background="#101D32">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Spacing="10">
+                    <Grid>
+                        <StackPanel>
+                            <TextBlock Text="P U L S E P A L" FontSize="12" Foreground="#70E4FF" FontWeight="SemiBold"/>
+                            <TextBlock x:Name="CompanionIdentity" Text="{x:Bind ViewModel.CompanionIdentity, Mode=OneWay}" FontSize="11" Foreground="#9AAEC9" Margin="0,4,40,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <Button Content="···" HorizontalAlignment="Right" Padding="10,0" MinHeight="30" AutomationProperties.Name="Companion menu">
+                            <Button.Flyout>
+                                <MenuFlyout>
+                                    <MenuFlyoutItem x:Name="ProfileMenuItem" Text="Meet your companion / Profile &amp; preferences" Command="{x:Bind ViewModel.ShowProfileCommand}"/>
+                                    <MenuFlyoutItem Text="Demo controls…" Command="{x:Bind ViewModel.ShowControlsCommand}"/>
+                                    <MenuFlyoutItem Text="Exit PulsePal" Command="{x:Bind ViewModel.ExitCommand}"/>
+                                </MenuFlyout>
+                            </Button.Flyout>
+                        </Button>
+                    </Grid>
+                    <InfoBar x:Name="Banner" IsOpen="False" Severity="Informational" IsClosable="True"/>
+                    <controls:CompanionAvatar x:Name="Avatar" Width="180" Height="160" HorizontalAlignment="Center"/>
+                    <Border x:Name="PeakPanel" Visibility="Collapsed" Background="#173651" BorderBrush="#70E4FF" BorderThickness="1" CornerRadius="12" Padding="12">
+                        <StackPanel Spacing="6">
+                            <TextBlock x:Name="PeakTitle" FontSize="18" FontWeight="SemiBold" Foreground="#79E9FF" TextWrapping="Wrap"/>
+                            <TextBlock x:Name="PeakText" FontSize="12" TextWrapping="Wrap" Foreground="#C6D8ED"/>
+                            <TextBlock Text="Choose a pause, or Remind Later when you're ready." FontSize="12" TextWrapping="Wrap"/>
+                            <TextBlock Text="{x:Bind ViewModel.RecommendedBreak, Mode=OneWay}" Foreground="#79E9FF" FontSize="12" TextWrapping="Wrap"/>
+                            <Button x:Name="PeakScreenButton" Content="Screen break · 5 min" Command="{x:Bind ViewModel.StartScreenBreakCommand}" HorizontalAlignment="Stretch"/>
+                            <Button x:Name="PeakWaterButton" Content="Water break · 1 min" Command="{x:Bind ViewModel.StartWaterBreakCommand}" HorizontalAlignment="Stretch"/>
+                            <Button x:Name="PeakStretchButton" Content="Gentle movement · 2 min" Command="{x:Bind ViewModel.StartStretchBreakCommand}" HorizontalAlignment="Stretch"/>
+                            <Button x:Name="PeakBreathingButton" Content="Guided breathing · 1 min" Command="{x:Bind ViewModel.StartBreathingCommand}" HorizontalAlignment="Stretch"/>
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                <Button Content="Dismiss" Command="{x:Bind ViewModel.DismissCommand}" HorizontalAlignment="Stretch"/>
+                                <Button Grid.Column="1" Content="Remind Later" Command="{x:Bind ViewModel.RemindLaterCommand}" HorizontalAlignment="Stretch"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                    <StackPanel x:Name="MessagePanel" Spacing="8">
+                        <TextBlock x:Name="MessageTitle" Text="{x:Bind ViewModel.MessageTitle, Mode=OneWay}" FontSize="21" FontWeight="SemiBold" Foreground="#EFFAFF" TextWrapping="Wrap"/>
+                        <TextBlock x:Name="MessageText" Text="{x:Bind ViewModel.MessageText, Mode=OneWay}" FontSize="13" LineHeight="19" Foreground="#C6D8ED" TextWrapping="Wrap"/>
+                    </StackPanel>
+                    <Border x:Name="BreathingPanel" Visibility="Collapsed" Background="#173651" CornerRadius="12" Padding="12">
+                        <StackPanel Spacing="5">
+                            <TextBlock x:Name="BreathingPhase" FontSize="23" Foreground="#79E9FF" HorizontalAlignment="Center"/>
+                            <TextBlock x:Name="BreathingCycle" FontSize="12" HorizontalAlignment="Center"/>
+                            <ProgressBar x:Name="BreathingProgress" Maximum="1" Height="4" Foreground="#72DFFF"/>
+                            <TextBlock Text="Keep it comfortable; stop if you feel unwell." FontSize="11" TextWrapping="Wrap" Foreground="#BFD2E6"/>
+                        </StackPanel>
+                    </Border>
+                    <Border x:Name="RecoveryPanel" Visibility="Collapsed" Background="#173651" CornerRadius="12" Padding="12">
+                        <StackPanel Spacing="6">
+                            <TextBlock x:Name="RecoveryCountdown" FontSize="25" Foreground="#79E9FF" HorizontalAlignment="Center"/>
+                            <ProgressBar x:Name="RecoveryProgress" Maximum="1" Height="4" Foreground="#72DFFF"/>
+                            <TextBlock Text="You can hide the timer and return from the tray. Your break keeps running." FontSize="12" TextWrapping="Wrap" Foreground="#C6D8ED"/>
+                        </StackPanel>
+                    </Border>
+                    <TextBlock x:Name="FocusEndedText" Visibility="Collapsed" FontSize="12" TextWrapping="Wrap" Foreground="#79E9FF"/>
+                    <Grid x:Name="RecoveryActions" Visibility="Collapsed" ColumnSpacing="8">
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                        <Button x:Name="CancelRecoveryButton" Content="Cancel break" Command="{x:Bind ViewModel.CancelRecoveryCommand}" HorizontalAlignment="Stretch"/>
+                        <Button x:Name="HideRecoveryButton" Grid.Column="1" Content="Hide timer" Command="{x:Bind ViewModel.HideRecoveryTimerCommand}" HorizontalAlignment="Stretch"/>
+                    </Grid>
+                    <InfoBar x:Name="ErrorBanner" IsOpen="False" Severity="Error" IsClosable="True"/>
+                    <Button x:Name="FocusButton" Content="{x:Bind ViewModel.FocusActionText, Mode=OneWay}" Command="{x:Bind ViewModel.ToggleFocusCommand}" HorizontalAlignment="Stretch" Background="#185D87" BorderBrush="#4DAACA" Foreground="White"/>
+                    <StackPanel x:Name="BreakChooser" Spacing="5">
+                        <TextBlock Text="{x:Bind ViewModel.RecommendedBreak, Mode=OneWay}" FontSize="12" Foreground="#79E9FF" TextWrapping="Wrap"/>
+                        <Button Content="Take a break" HorizontalAlignment="Stretch">
+                            <Button.Flyout>
+                                <MenuFlyout>
+                                    <MenuFlyoutItem x:Name="ScreenBreakMenuItem" Text="Screen break · 5 min" Command="{x:Bind ViewModel.StartScreenBreakCommand}"/>
+                                    <MenuFlyoutItem x:Name="WaterBreakMenuItem" Text="Water break · 1 min" Command="{x:Bind ViewModel.StartWaterBreakCommand}"/>
+                                    <MenuFlyoutItem x:Name="StretchBreakMenuItem" Text="Gentle movement · 2 min" Command="{x:Bind ViewModel.StartStretchBreakCommand}"/>
+                                    <MenuFlyoutItem x:Name="BreathingMenuItem" Text="Guided breathing · 1 min" Command="{x:Bind ViewModel.StartBreathingCommand}"/>
+                                </MenuFlyout>
+                            </Button.Flyout>
+                        </Button>
+                    </StackPanel>
+                    <Grid x:Name="DismissActions" ColumnSpacing="8">
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                        <Button x:Name="DismissButton" Content="Dismiss" Command="{x:Bind ViewModel.DismissCommand}" HorizontalAlignment="Stretch"/>
+                        <Button x:Name="LaterButton" Grid.Column="1" Content="Remind Later" Command="{x:Bind ViewModel.RemindLaterCommand}" HorizontalAlignment="Stretch"/>
+                    </Grid>
+                    <TextBlock Text="Attention Shield: simulated notifications only." FontSize="10" Foreground="#92ABC6" TextWrapping="Wrap"/>
+                    <TextBlock Text="PulsePal is not a medical device.&#xA;All wellness information shown in demo mode is synthetic." FontSize="10" Foreground="#92ABC6" TextWrapping="Wrap"/>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+    </Grid>
+</Window>

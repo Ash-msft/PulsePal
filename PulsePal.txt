@@ -1,0 +1,762 @@
+PULSEPAL - AI WELLNESS & PRODUCTIVITY COMPANION
+Complete Project Brief, Implementation Record and Future Roadmap
+Documentation date: 21 September 2026
+
+Tagline:
+"Your desktop knows what you're doing. PulsePal knows how you're feeling."
+
+===============================================================================
+1. EXECUTIVE SUMMARY
+===============================================================================
+
+PulsePal is a Windows desktop companion that demonstrates how work context and
+wearable-style wellness signals can work together to protect focus, encourage
+rest, and make productivity feel more sustainable.
+
+Rather than asking someone to watch another dashboard, PulsePal lives in the
+Windows notification area, commonly called the system tray. A small, animated
+companion appears for useful moments: a daily briefing, a focus interaction,
+sustained stress, a hydration reminder, or a completed recovery break.
+
+The current application is a complete, runnable offline demonstration. It uses
+real C# implementation, a native Windows tray icon, WinUI 3 interfaces, locally
+persisted preferences, correlated synthetic wearable data, explainable rules,
+and actual timed activities. It does not need a wearable, account, API key,
+Azure subscription, Microsoft Graph connection, or cloud AI service to run.
+
+Its intelligence is rule-based, not a trained model or a conversational LLM.
+Its health signals and productivity context are simulated. The tagline describes
+the product vision; the current demo does not observe actual desktop activity or
+know how a person feels.
+
+Required privacy statements:
+"PulsePal is not a medical device."
+"All wellness information shown in demo mode is synthetic."
+
+===============================================================================
+2. THE PROBLEM AND PRODUCT VISION
+===============================================================================
+
+Knowledge workers often face competing tasks, frequent interruptions, long
+meetings, poor sleep, and too few restorative pauses. Productivity tools usually
+show what work needs doing. Wearable platforms usually show physical signals.
+PulsePal explores a companion experience that brings these perspectives together.
+
+The intended benefits are to:
+- Protect focused work while allowing important interruptions.
+- Recognize sustained workload and recovery imbalance, rather than one-off spikes.
+- Suggest practical breaks at appropriate moments.
+- Make a companion feel personal rather than generic.
+- Explain why an intervention was suggested.
+- Keep the person in control through dismissal, snooze and preferences.
+
+These are design goals and demonstrated behaviors, not proven clinical or
+productivity outcomes. The app does not diagnose stress, fatigue or burnout.
+
+The main product is a quiet companion, not a permanently open analytics panel.
+A separate developer window makes the simulation observable and controllable
+for presentations and engineering work.
+
+===============================================================================
+3. WHAT HAS BEEN CREATED
+===============================================================================
+
+The workspace contains four projects:
+
+PulsePal.App
+  The Windows application: tray integration, animated companion popup, MVVM
+  presentation state, profile/preferences window, developer controls, recovery
+  interactions, dependency injection and a hosted sampling service.
+
+PulsePal.Core
+  Platform-independent contracts, wellness analysis, notification filtering,
+  cooldown rules, companion identities, recovery definitions and timer logic.
+
+PulsePal.Infrastructure
+  Synthetic and replay wearable providers, future integration stubs, simulated
+  work context, thread-safe demo orchestration and local JSON persistence.
+
+PulsePal.Tests
+  xUnit coverage for data generation, analysis, focus, escalation, notifications,
+  cooldowns, recovery timing, provider behavior and persistence.
+
+Additional deliverables:
+- PP_code.slnx: solution suitable for the current Visual Studio workspace.
+- PulsePal.sln: traditional solution containing the same four projects.
+- README.md: setup, architecture, presentation and operating instructions.
+- PulsePal.txt: this comprehensive project description.
+- .gitignore: excludes generated build, IDE and distribution output.
+- artifacts\PulsePal: self-contained, unpackaged Windows x64 presentation build.
+- Original replaceable vector companion artwork, with three identities.
+- Replay fixture data and automated desktop smoke-test support.
+
+===============================================================================
+4. TECHNOLOGY AND APPLICATION ARCHITECTURE
+===============================================================================
+
+Implemented technology stack:
+- C# and .NET 10, using the installed SDK.
+- WinUI 3 and Windows App SDK.
+- CommunityToolkit.Mvvm for observable state and command bindings.
+- Microsoft.Extensions.Hosting for hosting and dependency injection.
+- Hosted background sampling with dispatch back to the UI thread.
+- System.Text.Json for local storage and replay data.
+- xUnit for automated tests.
+- Native Windows APIs for the notification-area icon and display placement.
+
+App target: net10.0-windows10.0.19041.0, Windows x64.
+Windows App SDK package: 1.8.260508005.
+CommunityToolkit.Mvvm package: 8.4.2.
+Microsoft.Extensions.Hosting package: 10.0.12.
+Windows SDK BuildTools package: 10.0.26100.4654.
+
+The application is unpackaged: installing an MSIX package is not necessary for
+the local demo. Published output includes .NET and Windows App SDK runtime files.
+The entire publish directory must be kept together, including native libraries,
+compiled XAML and resource files. Copying the executable alone is not sufficient.
+
+The main data flow is:
+1. A selected scenario supplies mock productivity context.
+2. The wearable provider supplies a time-stamped sample.
+3. The analyzer produces scores, a state and explainable reasons.
+4. The engine applies focus protection, recovery state and notification policies.
+5. The hosted service sends snapshots to the UI approximately every two seconds.
+6. The controller updates views and displays an eligible companion message.
+7. Preferences and bounded history are saved locally.
+
+UI animation and recovery updates run separately from wearable sampling.
+Core logic is kept separate from desktop APIs so providers and interfaces can
+evolve without replacing the entire application.
+
+===============================================================================
+5. THE TRAY-FIRST DESKTOP EXPERIENCE
+===============================================================================
+
+The application creates a real Windows system-tray icon. It may initially appear
+inside the hidden-icons overflow area, depending on Windows settings.
+
+Click the icon to bring back the companion. Its context menu provides routes to
+focus, recovery activities, profile/preferences, developer controls and exit.
+Closing a companion window is not the same as exiting the application.
+
+The floating companion:
+- Appears near the bottom-right of the selected monitor's usable work area.
+- Accounts for taskbar placement and monitor scaling.
+- Uses dark blue surfaces, cyan holographic accents and rounded styling.
+- Shows original character art, contextual text and relevant actions.
+- Uses smooth entrance/exit and breathing animations.
+- Respects the Windows animation preference.
+- Automatically hides ordinary messages after the configured duration.
+- Keeps peak-stress prompts and active recovery timers visible until addressed.
+
+A hidden recovery timer continues running. Reopening the companion reveals the
+same countdown, not a new activity. An active break can also be cancelled
+explicitly, without receiving its simulated completion benefit.
+
+Tray resources are released on exit. The tray implementation also handles
+Explorer/taskbar restart recovery. Failures are surfaced through UI status and
+local diagnostic logging rather than presented as successful operations.
+
+===============================================================================
+6. COMPANION IDENTITIES, EXPRESSIONS AND PERSONALIZATION
+===============================================================================
+
+Three selectable companions now exist, each with original artwork and a distinct
+interaction style. They are different appearances, not just color variations.
+
+NOVA - Calm strategist
+  A cyan, star-crowned companion with a spiky silhouette. Nova uses clear,
+  thoughtful guidance and emphasizes a steady rhythm and one task at a time.
+
+LUMI - Gentle encourager
+  A soft-blue companion with flowing hair and a crescent clip. Lumi uses warm,
+  patient encouragement and makes taking a break feel welcome rather than earned.
+
+KAIRO - Upbeat teammate
+  An electric-blue companion with a swept crest and a technology headset.
+  Kairo offers friendly, practical encouragement while leaving room for rest.
+
+Each identity supports all eight character states:
+Normal, Focused, Happy, Encouraging, Concerned, Thinking, Celebrating and Resting.
+
+Eyes, mouth, expression accents and effects change with state while the selected
+identity remains recognizable. The blue/cyan application theme stays consistent.
+Accessible names and tooltips include identity and state information.
+
+Profile & preferences is an ordinary user-facing window, accessible from the
+companion or tray menu. It provides:
+- Companion selection, descriptions and expression previews.
+- A display name for personalized messaging.
+- A preferred recovery activity.
+- Hydration reminder preferences.
+- Ordinary popup duration, adjustable in the UI from 5 to 120 seconds.
+- An Apply action that updates the app and saves preferences locally.
+
+Previewing a selection does not immediately overwrite saved preferences.
+Older saved settings receive compatible defaults: Nova and a five-minute
+screen break. The artwork is isolated in a reusable control for later replacement.
+
+Personality currently means authored greeting, focus and recovery phrasing.
+It does not mean an autonomous personality model or open-ended AI conversation.
+
+===============================================================================
+7. WEARABLE DATA MODEL
+===============================================================================
+
+WearableSample contains the following fields:
+
+Timestamp                  Time of the sample.
+HeartRate                  Beats per minute.
+RestingHeartRate            Resting baseline in beats per minute.
+HeartRateVariability        HRV represented in milliseconds.
+StressLevel                Normalized wearable-style stress estimate, 0-100.
+Steps                      Daily step count.
+Calories                   Estimated energy expenditure, in calories/kcal context.
+ActiveMinutes              Active time in minutes.
+SleepScore                 Normalized sleep score, 0-100.
+TotalSleepMinutes          Total recorded sleep duration.
+DeepSleepMinutes           Deep sleep duration.
+RemSleepMinutes            REM sleep duration.
+LightSleepMinutes          Light sleep duration.
+ReadinessScore             Normalized readiness estimate, 0-100.
+RecoveryScore              Normalized recovery estimate, 0-100.
+BloodOxygen                Oxygen saturation percentage.
+RespirationRate            Breaths per minute.
+BodyBattery                Normalized energy-style estimate, 0-100.
+FocusScore                 Synthetic focus field in the shared demo schema.
+
+Measurements other than the timestamp use nullable values where appropriate.
+Missing measurements should not be mistaken for zero or conclusive evidence of
+poor health. The analyzer handles missing or invalid input explicitly.
+
+The schema is inspired by common wearable metrics, not a claim that Garmin,
+Oura, Fitbit, Samsung Health or Apple Health expose identical fields, units or
+scoring algorithms. Vendor-specific adapters will need normalization.
+
+FocusScore is not presented as a standard physiological wearable measurement.
+The current analyzer derives its focus estimate from work interruptions, idle
+time and focus-session context, rather than trusting a wearable focus field.
+
+===============================================================================
+8. CORRELATED SYNTHETIC DATA ENGINE
+===============================================================================
+
+SyntheticWearableProvider is the active provider in the default demo. It generates
+bounded, time-dependent values with relationships, instead of independently
+randomizing every metric.
+
+Examples of relationships represented:
+- Poor sleep lowers readiness and energy and contributes to fatigue across the day.
+- Increased meeting load and application switching add pressure.
+- Rising stress is associated with changes in heart rate and HRV.
+- Walking recovery increases activity and steps.
+- Completing recovery activities changes synthetic stress and recovery trends.
+- Heart rate and other signals move toward targets rather than jumping arbitrarily.
+- Deep, REM and light sleep durations agree with total sleep duration.
+
+The provider supports a seed for reproducible tests. Daily counters and retained
+sleep burden use UTC-day boundaries. Scenario changes do not instantly erase
+poor sleep or turn a high heart rate into a calm baseline.
+
+Six presentation scenarios are implemented:
+
+Healthy Day
+  Relatively balanced signals and manageable work context.
+
+Deep Focus Session
+  Low-interruption context and focus-friendly signals. A scenario is not itself
+  the Attention Shield session; use Start Focus to enable notification protection.
+
+Rising Stress
+  Increasing stress-related signals that demonstrate trend detection and
+  eventual escalation into a persistent peak-stress prompt.
+
+Meeting Overload
+  Heavier meeting and interruption pressure that contributes to stress and
+  sustained workload/recovery risk.
+
+Recovery After Break
+  Simulated walking and recovery trends, including activity accumulation.
+
+Poor Sleep Day
+  Reduced sleep quality/duration with consequences that persist beyond a single
+  sample and are not erased merely by switching scenario or taking a short break.
+
+Timing is intentionally accelerated to make the product demonstrable. These
+relationships and transitions are illustrative, not physiological predictions.
+
+===============================================================================
+9. PROVIDER ADAPTERS AND FUTURE DATA SOURCES
+===============================================================================
+
+IWearableProvider separates sample acquisition from the application experience.
+Its sample method receives work context, a timestamp and cancellation support.
+
+Implemented providers:
+
+SyntheticWearableProvider
+  Generates the offline demo data and is used by default.
+
+ReplayWearableProvider
+  Reads a JSON array or supplied sequence of samples. It validates measurement
+  ranges and sleep-stage consistency, supports optional looping, and explicitly
+  reports exhaustion when a non-looping recording ends. Samples are stamped with
+  the caller's playback time. Replay is available programmatically; there is no
+  provider-selection/import wizard in the current user interface.
+
+GarminProviderStub and OuraProviderStub
+  Explicit placeholders for future adapters. They throw NotSupportedException
+  rather than suggesting a live integration exists or silently fabricating data.
+
+A different provider can be injected into DemoEngine without replacing the
+wellness rules. Real integrations would still need permissions, authentication,
+platform access, data normalization and appropriate failure handling.
+
+Synthetic recovery adjustments are not applied as invented improvements to
+replay or future live measurements.
+
+===============================================================================
+10. SIMULATED PRODUCTIVITY CONTEXT
+===============================================================================
+
+WorkContext contains:
+- ActiveApplication.
+- IdleTime.
+- AppSwitchCount.
+- MeetingsToday.
+- UpcomingMeetings.
+- PriorityTasks.
+- EscalationCount.
+- UnreadImportantItems.
+
+MockWorkContextProvider supplies scenario-appropriate values. A busy scenario
+therefore changes more than just the heart-rate display: it changes the context
+used by the decision engine.
+
+The demo does not read actual calendar entries, email, Teams chats, foreground
+applications, keyboard activity, screenshots or Microsoft Graph data.
+
+===============================================================================
+11. EXPLAINABLE INTELLIGENCE
+===============================================================================
+
+WellnessAnalyzer produces four normalized scores:
+FocusScore, StressScore, FatigueScore and BurnoutRiskScore.
+
+It classifies the current demo state as:
+Balanced, Focused, Stressed, HighStress, Fatigued, Recovering or BurnoutRisk.
+
+Decisions include human-readable reasons. Examples cover:
+- Heart rate above the reported resting baseline.
+- Elevated wearable stress cues observed over time.
+- Low HRV as a limited supporting cue rather than a standalone diagnosis.
+- Work pressure from meetings, switching and escalations.
+- Poor or short sleep contributing to fatigue through the day.
+- Recent recovery activity and its synthetic effect.
+- Missing or invalid measurements and neutral assumptions.
+
+A single high reading is not sufficient to establish sustained stress. Timing,
+correlated cues and observation continuity matter. Out-of-order samples and long
+observation gaps do not count as evidence of continuous stress.
+
+The demo's burnout-risk flag requires sustained elevated cues plus poor sleep or
+heavy work context. It represents an explainable workload/recovery heuristic,
+not a prediction of a diagnosed condition or a validated clinical assessment.
+
+===============================================================================
+12. PEAK-STRESS ATTENTION AND NOTIFICATION RESTRAINT
+===============================================================================
+
+The initial experience used a short stress nudge. It has now been extended to
+distinguish early sustained stress from a persistent near-maximum episode.
+
+Current peak-stress behavior:
+- An analysis score at or above 90/100 must persist for ten seconds in an eligible
+  high-stress state before the stronger prompt is generated.
+- The peak prompt remains visible instead of expiring like an ordinary popup.
+- It visibly offers screen, water, movement and breathing choices.
+- It can escalate past the earlier mild-message cooldown.
+- It does not override Dismiss or Remind Later snooze.
+- Peak repeats are limited to once every two minutes.
+- Ten seconds below 80 clears the episode/persistent UI condition.
+- Hysteresis avoids repeatedly switching the prompt around a single threshold.
+- Lower-priority messages do not replace an active peak prompt.
+- Allowed urgent demo notifications can appear as a banner without removing the
+  recovery choices.
+
+Ordinary wellness messages use cooldown logic. Dismiss normally snoozes wellness
+interruptions for five minutes; Remind Later snoozes them for ten minutes.
+During an active recovery activity, the UI provides explicit Hide timer and
+Cancel break actions, and ordinary wellness prompts are suppressed.
+
+These thresholds are accelerated demo choices, not medical cutoffs. A maximum
+synthetic score is not treated as proof of an emergency or a real diagnosis.
+
+===============================================================================
+13. ATTENTION SHIELD AND FOCUS SESSIONS
+===============================================================================
+
+Attention Shield protects a focus session within the simulated notification stream.
+
+Allowed during focus:
+- Manager messages.
+- Escalations.
+- Critical alerts.
+- Meeting reminders.
+
+Deferred during focus:
+- FYI emails.
+- Group messages.
+- Low-priority alerts.
+
+The engine keeps a pending queue and a bounded decision history with reasons.
+Outside focus, notifications are allowed normally. Ending focus releases queued
+items and generates a summary with actual elapsed duration, delayed-item count
+and urgent-item count. Released items are visible in the demo activity history.
+
+Starting a recovery activity ends the current focus session, releases its queue,
+and displays the focus result. This prevents a five-minute screen break from
+being counted as five additional minutes of focused work.
+
+IMPORTANT: PulsePal does not intercept or block real Windows, Outlook, Teams or
+browser notifications. Counts refer to simulated items, not real distractions
+removed from the operating system. Active sessions and pending queues are not
+restored as running sessions after an app restart.
+
+===============================================================================
+14. FOUR RECOVERY ACTIVITIES
+===============================================================================
+
+Guided breathing - 60 seconds
+  Five cycles of four-second inhale, two-second hold and six-second exhale.
+  The companion's light/ring animation follows the phase. Instructions emphasize
+  comfort and stopping if the activity feels unpleasant.
+
+Away from the screen - 5 minutes
+  A practical invitation to leave the display, look into the distance or take a
+  comfortable walk. The timer can be hidden so the activity does not require
+  watching the screen it asks the person to leave.
+
+Water break - 1 minute
+  A pause to get water if needed. There is no required intake target, and the
+  wording respects personal fluid guidance.
+
+Gentle movement - 2 minutes
+  An invitation to change position, relax shoulders or move comfortably. Seated
+  movement is welcome and painful movements should be skipped.
+
+Shared recovery behavior:
+- Timers use monotonic elapsed time rather than wall-clock changes.
+- Only one recovery activity can run at a time.
+- Completion is recognized exactly once and only after the full duration.
+- Cancelling never earns a completion effect.
+- Hiding does not cancel, restart or pause the activity.
+- Reopening shows the remaining time.
+- Active timers stay visible unless explicitly hidden.
+- Completion presents a companion message, including profile-specific phrasing.
+- Focus, another recovery activity or scenario switching cannot accidentally
+  replace an ongoing break; the UI explains that it must finish or be cancelled.
+- Allowed notifications can be shown non-disruptively while a break continues.
+
+Different activities have different bounded synthetic recovery adjustments.
+The effect persists for a short period and tapers rather than disappearing on
+the next sample. Last night's sleep burden is not erased. The timer is evidence
+that time passed, not proof that the person performed the suggested activity.
+No health outcome is guaranteed.
+
+===============================================================================
+15. BRIEFINGS, HYDRATION AND PERSONAL MESSAGING
+===============================================================================
+
+At startup, PulsePal provides a personalized briefing using the configured name,
+selected companion's greeting, simulated sleep information and mock work counts.
+The current briefing is a startup experience; a scheduled daily briefing service
+is a possible future enhancement, not an existing calendar integration.
+
+Other messages explain focus protection, recovery progress, fatigue and stress.
+Hydration reminders are optional and are eligible on a roughly 30-minute cadence
+subject to focus, recovery, snooze and cooldown conditions. They are suggestions,
+not a hydration tracker or prescribed water-intake program.
+
+===============================================================================
+16. DEVELOPER / PRESENTATION CONTROL ROOM
+===============================================================================
+
+The separate demo window is available on demand from the companion/tray or by
+launching with --demo-controls. It is not the product's primary interface.
+
+It displays:
+- Current heart rate, stress, sleep, readiness, focus and burnout-risk estimates.
+- Selected scenario and sample time.
+- Simulated application, idle time, switches, meetings, tasks and escalations.
+- Wellness state, fatigue score and explainable decision reasons.
+- Focus and recovery status.
+- Queued/urgent notification counts and activity/release logs.
+- Recent engine history.
+- Runtime and local-storage status.
+
+Controls allow all six scenarios, focus start/end, escalation and FYI simulation,
+all four recovery activities, cancellation, hiding a timer, showing the companion
+and updating basic preferences. The profile window offers the richer personal
+companion selection experience.
+
+===============================================================================
+17. LOCAL STORAGE, PRIVACY AND ERROR HANDLING
+===============================================================================
+
+Default data directory:
+  %LOCALAPPDATA%\PulsePal
+
+Primary state file:
+  %LOCALAPPDATA%\PulsePal\state.json
+
+Saved data includes display and reminder preferences, companion selection,
+preferred break, popup duration, scenario, companion state, save timestamp and
+bounded demo history. History retains up to 500 engine entries; this is not a
+long-term health-record database.
+
+JsonStateStore validates input and serializes through System.Text.Json. Writes
+use a same-directory temporary file followed by replacement/rename. Concurrent
+access is coordinated, and transient Windows rename contention has bounded retry.
+Malformed existing state is preserved in a corruption backup before replacement.
+Storage failures appear in the app rather than being silently treated as saved.
+
+Diagnostic file:
+  %LOCALAPPDATA%\PulsePal\app.log
+
+The current app has no cloud telemetry or remote data service. Local state is
+plain-text JSON, not encrypted. The demo should not be mistaken for a secure
+clinical-record system. Exit the app before removing its local data to reset it.
+
+===============================================================================
+18. SOURCE-CODE MAP
+===============================================================================
+
+Key application files:
+- App.xaml / App.xaml.cs: WinUI startup, host/DI registration and shutdown.
+- AppController.cs: interaction orchestration, recovery, persistence and smoke run.
+- CompanionWindow.xaml / .cs: popup layout, animations and monitor placement.
+- ViewModels\CompanionViewModel.cs: observable popup properties and commands.
+- Controls\CompanionAvatar.xaml / .cs: original three-profile, eight-state art.
+- CompanionProfileWindow.cs: selection previews and personal preferences.
+- DemoControlsWindow.cs: scenario controls, metrics, decisions and activity logs.
+- Services\SamplingService.cs: background sample loop and UI dispatch.
+- Services\TrayIcon.cs: native notification-area integration and menu commands.
+- Services\AppLog.cs: local diagnostics.
+- app.manifest and PulsePal.App.csproj: Windows/build/deployment configuration.
+
+Key core files:
+- Contracts.cs: metrics, context, analysis, messages, preferences and state models.
+- WellnessAnalyzer.cs: explainable scores and states.
+- AttentionShield.cs: notification decisions, queue and focus summaries.
+- CooldownPolicy.cs: ordinary cooldown, snooze and bounded peak escalation.
+- CompanionProfiles.cs: names, personalities, palette identifiers and phrases.
+- RecoveryActivities.cs: activity titles, durations and instructions.
+- RecoverySession.cs: testable monotonic timer and completion semantics.
+
+Key infrastructure files:
+- DemoEngine.cs: provider-independent orchestration and synthetic recovery effects.
+- SyntheticWearableProvider.cs: correlated scenario engine.
+- ReplayWearableProvider.cs: validated sequential playback.
+- MockWorkContextProvider.cs: simulated productivity context.
+- GarminProviderStub.cs / OuraProviderStub.cs: explicit future-provider boundaries.
+- JsonStateStore.cs: validated local persistence.
+
+Key test groups:
+CoreTests, EngineTests, ProviderTests, PersistenceTests, AtomicRenameTests,
+ReplayFixtureTests, CompanionPreferencesTests, PeakStressTests,
+RecoverySessionTests and RecoveryEngineTests, plus replay fixtures.
+
+===============================================================================
+19. VALIDATION AND ENGINEERING WORK COMPLETED
+===============================================================================
+
+Recorded results from the latest implementation cycle:
+- Release and Debug solution builds completed successfully.
+- Visual Studio application build completed successfully.
+- 285 unit tests passed, including the original 199-test baseline.
+- 48 full desktop smoke checks passed in the latest integrated run.
+- The published application was launched with developer controls and confirmed
+  responsive after the launcher returned.
+
+Coverage includes correlated values and valid ranges, scenario transitions,
+nullable data, replay validation, focus detection, sustained stress, burnout-risk
+rules, urgent/deferred filtering, queue release, cooldown and snooze, peak
+escalation, profile preference compatibility, atomic storage, recovery effects,
+monotonic timers, cancellation and exact-once completion.
+
+Desktop coverage includes actual WinUI/tray initialization, opening the profile
+window, applying/rendering all three identities, expression transitions, peak
+prompt persistence, snooze, hidden timers, focus ending for breaks, an actual
+60-second breathing activity, and ordinary popup expiration.
+
+Five-minute screen-break timing is also tested with a controllable monotonic
+clock. Passing tests demonstrate covered behaviors; they do not replace broader
+accessibility, security, performance or device-compatibility evaluation before
+commercial deployment.
+
+Implementation and integration work also included fixing resource publication,
+x64 solution configuration, an interrupted launch, stale build-worker locking,
+profile preference preservation and unwanted auto-hiding of active break timers.
+
+===============================================================================
+20. HOW TO RUN, BUILD AND DISTRIBUTE
+===============================================================================
+
+Run the published presentation build from the workspace root:
+
+  .\artifacts\PulsePal\PulsePal.App.exe --demo-controls
+
+Run tray-first without opening the control room:
+
+  .\artifacts\PulsePal\PulsePal.App.exe
+
+Build from source using PowerShell:
+
+  dotnet restore .\PP_code.slnx
+  dotnet build .\PP_code.slnx -c Release -p:Platform=x64
+
+Run unit tests:
+
+  dotnet test .\PulsePal.Tests\PulsePal.Tests.csproj -c Release
+
+Publish a self-contained x64 distribution:
+
+  dotnet publish .\PulsePal.App\PulsePal.App.csproj -c Release -p:Platform=x64 -r win-x64 --self-contained true -o .\artifacts\PulsePal
+
+Run the expanded desktop exercise:
+
+  .\artifacts\PulsePal\PulsePal.App.exe --smoke-test --smoke-test-full
+
+The full exercise takes approximately two minutes and exits afterward. It writes
+smoke-test.json, smoke-test.png and profile-*.png in the local PulsePal directory.
+Run it with other PulsePal instances closed. It uses the local demo state and
+restores the original preferences and scenario after the exercise.
+
+For Visual Studio, open PP_code.slnx or PulsePal.sln, choose x64 and set
+PulsePal.App as the startup project. Building requires .NET 10 and Windows/WinUI
+development tooling. The first dependency restore needs access to NuGet packages.
+The already-published app needs no development SDK or network credentials.
+
+The target platform is Windows 10 version 2004 or newer, x64. Distribute the whole
+artifacts\PulsePal folder. No signing certificate is required for this local
+unpackaged demonstration; signed installation is a future distribution concern.
+
+===============================================================================
+21. SUGGESTED PRESENTATION STORY
+===============================================================================
+
+1. Introduce the tagline and explain that PulsePal is a companion, not another
+   dashboard. Point out the tray icon and the synthetic-data disclaimer.
+2. Show the personalized briefing and open Profile & preferences. Preview Nova,
+   Lumi and Kairo, change an expression, select a preferred break and apply.
+3. Start focus. Simulate an FYI email, then an escalation. Explain why one waits
+   and the other is allowed. End focus and show the real session summary.
+4. Select Rising Stress or Meeting Overload. Observe the correlated signals and
+   explanation text, then the stronger prompt when peak stress persists.
+5. Select a five-minute screen break. Hide and reopen its timer to demonstrate
+   continuity. Cancel if presentation time is limited; explain that cancellation
+   intentionally gives no recovery effect.
+6. Complete a one-minute breathing activity to show the animation and resulting
+   synthetic recovery trend. Point out the alternative water/movement choices.
+7. Close by explaining privacy, offline operation and provider-based extensibility.
+
+Allow time for trend-based escalation; this is not an instant scenario button
+that jumps all numbers to maximum. Existing snooze and sleep burden are preserved
+across scenario changes. Do not imply that notification filtering is operating on
+real Teams, email or Windows notifications.
+
+===============================================================================
+22. CURRENT LIMITATIONS AND WHAT IS NOT IMPLEMENTED
+===============================================================================
+
+- No live wearable synchronization or authenticated Garmin/Oura connection.
+- No real desktop-activity collection, calendar/email integration or Graph access.
+- No operating-system-wide notification interception or application blocking.
+- No trained predictive model, conversational chat, speech or cloud LLM.
+- No clinically validated health scoring, diagnosis, treatment or emergency triage.
+- No proof that completing a timer changes real physiological measurements.
+- No verification that a person drank water, moved or left the screen.
+- No long-term habit analytics, cross-device sync or personal-baseline learning.
+- No automatic restoration of running recovery/focus sessions across app restart.
+- No installer, signed update pipeline, startup-at-login UI or enterprise policy
+  management in the current demo.
+- No guarantee of compatibility with every monitor setup or Windows environment.
+- No encrypted local database or clinical-data compliance certification.
+
+The existing software is a working demonstration and extensible foundation,
+not a finished medical or enterprise monitoring product.
+
+===============================================================================
+23. FUTURE ROADMAP - POSSIBILITIES, NOT CURRENT FEATURES
+===============================================================================
+
+A. Live wearable adapters
+   Implement Garmin/Oura integrations where approved access exists; investigate
+   Fitbit, Samsung Health or Apple Health-compatible import/sync routes. Some
+   ecosystems may require a companion mobile app or vendor partnership. Add
+   permissions, authentication, freshness indicators and source-specific units.
+
+B. Opt-in real work context
+   Add explicit-consent calendar/task integration, foreground application and
+   idle-time signals, and carefully scoped Microsoft Graph connectors. Keep raw
+   personal content collection minimal and user-visible.
+
+C. Supported focus integrations
+   Explore approved OS/app notification controls and collaboration integrations.
+   Real filtering must respect platform permissions and critical alerts; the demo
+   queue should not be assumed to provide those capabilities automatically.
+
+D. Better personalized intelligence
+   Learn individual baselines over time, account for activity and context, expose
+   uncertainty and data freshness, and evaluate longer observation windows.
+   Optional local AI could improve phrasing or explanations while keeping rules,
+   consent and offline operation available. Cloud AI would be an optional future
+   adapter, not a required replacement for the current offline design.
+
+E. Richer recovery and habits
+   Configurable break schedules, calendar-aware focus blocks, optional journaling,
+   eye-rest guidance, accessible routines, reflection prompts and voluntary habit
+   summaries. User-reported completion should remain distinguishable from sensed
+   activity. Any health-facing claims would require appropriate evaluation.
+
+F. More companion customization
+   Additional original art packs, optional outfits/themes, interaction tone,
+   accessibility preferences, localization and optional voice. Preserve a quiet,
+   respectful experience rather than making personalization more interruptive.
+
+G. Privacy and product hardening
+   Encryption at rest, export/delete controls, configurable retention, explicit
+   integration consent, robust migrations, opt-in diagnostics, signed packaging,
+   updates, single-instance handling and restart-aware session recovery.
+
+H. Broader quality validation
+   Multi-monitor/DPI and accessibility testing, screen-reader and keyboard review,
+   long-running stability and power tests, performance measurement and usability
+   studies. Real-data algorithms need consented evaluation and careful review of
+   false positives, fairness and the consequences of mistaken interventions.
+
+These directions are supported by the modular architecture, but each requires
+additional implementation, testing and, where applicable, legal/platform access.
+No schedule or vendor approval is implied.
+
+===============================================================================
+24. OVERALL PROJECT POSITIONING
+===============================================================================
+
+PulsePal now demonstrates an end-to-end loop:
+
+  Synthetic signals + work context -> explainable assessment -> respectful
+  companion interaction -> focus protection or chosen recovery -> visible
+  feedback and locally saved preferences/history.
+
+Its distinguishing qualities are the tray-first design, original personal
+companions, correlated rather than arbitrary data, explainable intervention
+rules, stronger attention for sustained peak stress, multiple recovery choices,
+and the ability to run the full demonstration without external services.
+
+The central idea is not to maximize work at any cost. It is to make focused work
+and deliberate recovery part of the same supportive desktop experience, while
+keeping the person informed and in control.
+
+END OF PROJECT BRIEF

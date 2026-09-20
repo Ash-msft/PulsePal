@@ -1,0 +1,469 @@
+PULSEPAL CONNECT
+Phone-to-Desktop Health Sync - Product Pitch and Implementation Proposal
+21 September 2026
+
+Status: Proposed next phase. Phone synchronization is NOT implemented in the
+current application. PulsePal's existing working demo uses synthetic data.
+
+===============================================================================
+THE PITCH
+===============================================================================
+
+Your wearable understands parts of your day. Your phone holds those signals.
+Your desktop is where much of your work happens.
+
+PulsePal Connect would bring these experiences together.
+
+Instead of asking people to buy another device or constantly check a health
+dashboard, a small PulsePal mobile companion would securely share selected,
+user-authorized health records with the PulsePal Windows companion. The desktop
+could then combine recent measurements and sleep history with available work
+context to offer more informed focus and recovery suggestions.
+
+The experience remains familiar: a quiet tray companion, original personalized
+avatars, explainable prompts, focus sessions and practical break choices.
+The change is the source of information: from clearly labeled synthetic samples
+to clearly labeled, permission-based records from a person's own phone.
+
+Positioning:
+"From your wrist, through your phone, to a more considerate workday."
+
+PulsePal's original tagline:
+"Your desktop knows what you're doing. PulsePal knows how you're feeling."
+
+The tagline expresses a vision, not a claim that sensor data reveals feelings.
+Health measurements provide context, not certainty about a person's mental state.
+
+===============================================================================
+1. THE OPPORTUNITY
+===============================================================================
+
+Many people already use a wearable connected to a phone. Their health platform
+may contain heart-rate records, steps, sleep sessions and other useful signals.
+Meanwhile, their desktop productivity experience is usually disconnected from
+that context.
+
+PulsePal can explore a useful middle ground:
+- Make authorized wellness context available where work happens.
+- Encourage a manageable pace after a short night of sleep.
+- Offer considerate pauses rather than another stream of interruptions.
+- Explain the source and age of every measurement used.
+- Let people choose what is shared and stop sharing at any time.
+
+Illustrative interaction:
+"Your latest synced sleep record shows a shorter night. Would you prefer a
+shorter focus block and a five-minute screen break afterward?"
+
+This is a suggested future experience, not a clinically validated intervention
+or a claim that all of its scheduling behavior exists today.
+
+===============================================================================
+2. WHY USE THE PHONE AS THE BRIDGE?
+===============================================================================
+
+Connecting Windows separately to every watch and ring is difficult. Devices have
+different radio interfaces, vendor permissions, APIs and proprietary metrics.
+
+A phone bridge provides a more practical starting point:
+- Android Health Connect can expose records written by compatible health apps.
+- Samsung Health offers Android integration options for supported records.
+- Apple HealthKit exposes authorized health records to an iPhone companion app.
+- The desktop can consume a common PulsePal synchronization format.
+
+This reduces the number of device-specific paths, but does not eliminate platform
+integration work. A vendor app may display information it does not share through
+Health Connect, HealthKit or its SDK. Device and metric support must be verified.
+
+We would read approved platform APIs, not scrape another application's screen,
+bypass its permissions, or request the user's health-account password.
+
+===============================================================================
+3. PROPOSED END-TO-END EXPERIENCE
+===============================================================================
+
+  Wearable device
+		 |
+		 | Existing supported wearable-to-phone synchronization
+		 v
+  Phone health platform
+  Android Health Connect / Samsung Health / Apple HealthKit
+		 |
+		 | Explicit read permissions for selected data categories
+		 v
+  PulsePal mobile companion
+		 |
+		 | Secure paired synchronization
+		 v
+  PulsePal Windows companion
+		 |
+		 | Freshness-aware, conservative interpretation
+		 v
+  Focus and recovery suggestions with explainable reasons
+
+Proposed onboarding:
+1. Open Connect phone in PulsePal on Windows.
+2. Scan its pairing QR code with the PulsePal mobile companion.
+3. Confirm the pairing on both devices.
+4. Choose which health categories to share.
+5. Tap Sync now to transfer available authorized records.
+6. See the source, measurement time and synchronization status on Windows.
+7. Disconnect, revoke permissions or delete locally retained records when desired.
+
+Pairing must not grant access to every record automatically. Platform permission
+and the user's sharing choices both govern what is transferred.
+
+===============================================================================
+4. PLATFORM STRATEGY
+===============================================================================
+
+ANDROID - HEALTH CONNECT
+
+Recommended first implementation. Build a small Android companion that reads
+selected records from Health Connect with the user's permission.
+
+Start with heart rate, steps and sleep where available. The phone's source health
+app must actually write those records into Health Connect. Health Connect is a
+record store and interoperability layer, not a universal live sensor stream.
+
+SAMSUNG - AN ANDROID INTEGRATION PATH
+
+Samsung is not a third mobile operating system. For compatible Samsung setups,
+start by evaluating Samsung Health's sharing through Health Connect. If required
+data is not available there, evaluate Samsung Health Data SDK support.
+
+The SDK offers supported records such as heart rate, sleep, steps and energy
+score, subject to device/app support, user permissions and Samsung's SDK access
+and distribution requirements. An energy score is not automatically equivalent
+to Garmin Body Battery or another vendor's readiness score.
+
+APPLE - IPHONE COMPANION USING HEALTHKIT
+
+An iPhone app can request permission to read supported Apple Health records,
+including records originating from Apple Watch. It then relays permitted data
+to Windows using the same PulsePal synchronization contract.
+
+There is no general Windows endpoint that directly queries a person's iPhone
+HealthKit store. HealthKit and background delivery require native integration.
+Development/signing normally requires a Mac with Xcode and Apple tooling.
+
+SHARED CODE, PLATFORM-SPECIFIC ACCESS
+
+.NET MAUI is a possible way to share mobile UI, networking and data contracts.
+It does not remove the need for platform-specific Health Connect/HealthKit
+bindings, lifecycle handling, permissions and real-device testing. A native
+Android-first proof of concept is also reasonable if it reduces integration risk.
+The final mobile framework choice should follow a small technical feasibility spike.
+
+===============================================================================
+5. SYNCED RECORDS ARE NOT THE SAME AS LIVE STREAMING
+===============================================================================
+
+There are three distinct service levels:
+
+Manual synchronization
+  The user taps Sync now. The app reads records already available on the phone
+  and transfers them. This is the recommended first milestone.
+
+Background synchronization
+  New records transfer when the operating system permits background work.
+  Timing depends on permission, battery policies, connectivity and source sync.
+  It cannot promise a fixed two-second update rate.
+
+Live sensor session
+  A supported watch app, BLE sensor or vendor SDK streams current measurements.
+  This is a separate future integration, not a capability automatically obtained
+  by reading a health store.
+
+Data passes through multiple stages:
+  Measurement -> wearable processing -> phone sync -> health-store availability
+  -> PulsePal read -> transfer -> desktop receipt.
+
+Each stage can add delay. A record received now may describe a measurement taken
+much earlier. The desktop must preserve original measurement time, not stamp
+cached data as if it were newly measured.
+
+Last night's sleep can remain useful for today's briefing. A heart-rate reading
+from twenty minutes ago must not trigger a claim about stress "right now."
+
+===============================================================================
+6. FIRST-PROTOTYPE SCOPE
+===============================================================================
+
+Recommended scope:
+- One Android phone and one Windows PC.
+- Health Connect read access for heart rate, steps and sleep.
+- A known compatible source app/wearable combination.
+- Foreground Sync now, with clear progress and error messages.
+- Secure QR pairing on a trusted, reachable local network.
+- Local-only storage with explicit retention and deletion behavior.
+- Windows source, measurement-time and stale/disconnected indicators.
+- Existing Demo mode retained separately.
+
+Not part of the first prototype:
+- Continuous live stress measurement.
+- Universal compatibility with every watch and ring.
+- Proprietary readiness/stress scores on every platform.
+- Cloud hosting or multi-device account synchronization.
+- Medical interpretation, diagnosis or emergency detection.
+- Real notification interception or productivity monitoring.
+
+The first success is trustworthy data transfer, not maximizing the number of
+fields filled in on the desktop.
+
+===============================================================================
+7. TRANSPORT OPTIONS
+===============================================================================
+
+OPTION A: LOCAL NETWORK - RECOMMENDED FIRST
+
+Phone and Windows communicate directly when they can reach each other on the
+local network. No Azure subscription or public backend is required.
+
+Proposed security design:
+- Explicit start/stop control for the desktop pairing listener.
+- Short-lived, single-use pairing challenge in the QR code.
+- User confirmation binding the intended phone and PC.
+- Encrypted transport with verified server identity, for example certificate
+  pinning anchored by the confirmed pairing process.
+- A separate revocable device credential after pairing.
+- OS-protected credential/key storage rather than plain-text tokens in JSON.
+- Narrowly scoped local-network/firewall access, never an unprotected public port.
+
+We must not simply disable certificate validation to make local HTTPS work.
+The QR code must not contain health records or a permanent reusable secret.
+
+Limitations:
+- Guest Wi-Fi or corporate networks may block device-to-device traffic.
+- Windows may need an explicitly approved firewall exception.
+- PC sleep, phone background suspension and network changes interrupt transfer.
+- Queuing and retry should not turn old records into supposedly current readings.
+
+OPTION B: OPTIONAL CLOUD RELAY - LATER
+
+A backend can receive authorized records from the phone and deliver them when
+the desktop reconnects. This enables different networks and offline buffering.
+
+It also adds user accounts, hosting cost, security operations, data residency,
+retention, deletion and incident-response responsibilities. A relay does not
+bypass iOS/Android background limits or create measurements the phone lacks.
+Azure could host it, but Azure is not required by the concept or local MVP.
+
+===============================================================================
+8. DATA CONTRACT AND PROVIDER DESIGN
+===============================================================================
+
+PulsePal already has an IWearableProvider boundary. A proposed
+PhoneBridgeWearableProvider could expose authorized phone records to the desktop
+without replacing the tray, avatars or recovery interfaces.
+
+However, the existing single-sample model needs additional provenance/freshness
+support. Sleep, steps and heart rate can have different measurement periods; one
+overall sample timestamp is not sufficient to describe every field accurately.
+
+Proposed transfer metadata:
+- Schema version and paired device identifier.
+- Source platform, source application and device origin where available.
+- Stable source-record identifier for deduplication.
+- Measurement start/end time and applicable time-zone information.
+- Metric type, original units and normalized units.
+- Source update/deletion information where the platform supports it.
+- Permission/access status, distinguished from zero or "no measurement."
+- Desktop receipt time, recorded separately from measurement time.
+
+Implementation needs:
+- Incremental synchronization with checkpoints and safe retry.
+- Idempotent record ingestion to avoid counting the same steps twice.
+- Source-aware aggregation instead of blindly summing overlapping records.
+- Bounds and schema validation without inventing missing values.
+- Explicit handling of corrections, revoked access and unsupported categories.
+- Per-metric freshness policies and visible confidence/availability information.
+
+A missing proprietary score stays unavailable. A PulsePal-derived estimate must
+be labeled as such, not displayed as a vendor measurement.
+
+===============================================================================
+9. CHANGES TO THE INTELLIGENCE ENGINE
+===============================================================================
+
+The current demo deliberately accelerates scenarios and uses synthetic rules to
+make stress and recovery easy to demonstrate. These rules should not simply be
+connected to real readings unchanged.
+
+Before connected data drives automatic prompts, we must:
+- Separate Demo, Replay and Connected modes visibly.
+- Preserve measurement age and avoid treating repeated cached samples as new
+  evidence of persistent stress.
+- Review thresholds and observation windows for actual measurement cadence.
+- Account for movement and other explanations for elevated heart rate.
+- Establish conservative behavior when data is sparse, stale or missing.
+- Avoid claiming psychological stress from heart rate alone.
+- Distinguish reported wearable scores from PulsePal estimates.
+- Record break completion without modifying actual measurements to show recovery.
+- Preserve dismissal, snooze and user control.
+
+For the first connected prototype, display validated measurements and contextual
+briefings before enabling stronger automated health-related interpretations.
+FocusScore and burnout-risk scores remain heuristics, not medical measurements.
+
+===============================================================================
+10. PRIVACY AS A PRODUCT REQUIREMENT
+===============================================================================
+
+The proposed bridge should be read-only initially and collect only the data
+needed for a chosen feature.
+
+Required controls include:
+- Granular permissions and a clear explanation of each category's purpose.
+- A visible list of paired devices and last synchronization time.
+- Disconnect/revoke controls and deletion of retained PulsePal records.
+- Protected credential storage and a reviewed encryption-at-rest strategy.
+- Defined retention limits rather than indefinite health-data accumulation.
+- Redacted diagnostics: no raw health payloads or tokens in routine logs.
+- No advertising use or hidden sharing of health records.
+- Honest unavailable/stale states when access is denied or the phone disconnects.
+
+The current demo's plain-text JSON storage is not sufficient evidence of a
+production-grade sensitive-health-data storage design. This must be addressed
+as part of the connected-data work, not treated as already completed.
+
+The connected product would still state:
+"PulsePal is not a medical device."
+
+Synthetic data must retain its demo label. Connected records must instead be
+identified accurately by their source and age. There must be no silent fallback
+from real data to invented measurements.
+
+===============================================================================
+11. PROPOSED DELIVERY PHASES AND ACCEPTANCE CRITERIA
+===============================================================================
+
+PHASE 0 - DEVICE AND ACCESS FEASIBILITY
+Confirm the actual phone, wearable and source app. Verify which records can be
+read through the intended API and how quickly they arrive. Check permissions,
+SDK compatibility, distribution rules and development hardware requirements.
+
+Success: a small read-only mobile prototype can display authorized source
+records with their original timestamps. No Windows integration is required yet.
+
+PHASE 1 - ANDROID LOCAL SYNC MVP
+Implement pairing, manual sync, the desktop bridge provider and freshness UI.
+Keep automatic health interpretation conservative and clearly separated from
+the existing synthetic demo behavior.
+
+Success: known records appear correctly on Windows; repeated sync does not
+duplicate them; disconnection and permission denial are visible; missing fields
+stay unavailable; neither secret material nor raw records leak into logs.
+
+PHASE 2 - RELIABLE INCREMENTAL SYNC
+Add platform-supported background reads, checkpointing, reconnection, deletion
+handling and robust source-aware aggregation.
+
+Success: resume after PC sleep/network loss without duplication or false freshness.
+Background timing is documented from actual devices rather than promised in advance.
+
+PHASE 3 - IPHONE / HEALTHKIT
+Implement the Apple adapter and phone-to-PC client using the same transfer format.
+Validate signing, HealthKit authorization and system-managed background behavior.
+
+Success: Windows consumes Android and iPhone records through the same bridge
+contract while preserving platform/source differences.
+
+PHASE 4 - OPTIONAL RICHER INTEGRATIONS
+Evaluate Samsung-specific metrics, approved Garmin or other vendor integrations,
+live sensor sessions, optional cloud relay and more personalized interpretation.
+
+Success: each capability has verified device support, appropriate permissions
+and evidence-based descriptions of its limitations.
+
+No delivery dates are committed in this proposal. Effort depends on the selected
+hardware, API access and distribution requirements. Android-first keeps the
+initial milestone narrower and reduces dependency on Apple build tooling.
+
+===============================================================================
+12. PRESENTATION STORY
+===============================================================================
+
+Suggested future demonstration:
+1. Show the existing offline PulsePal companion and explain Demo mode.
+2. Pair an Android phone by scanning the desktop QR code.
+3. Grant read permission for selected health categories.
+4. Tap Sync now and show actual records arriving on the PC.
+5. Point out Measured at, Last synced and Source labels.
+6. Show that unsupported metrics are unavailable rather than fabricated.
+7. Start a focus session or choose a recovery break in the familiar interface.
+8. Disconnect the phone and demonstrate an honest disconnected/stale state.
+9. Explain that health history can inform a considerate suggestion without
+   pretending to diagnose the person or know their feelings.
+
+Until this work is implemented, this sequence is a proposed demo script, not a
+feature that can be launched from the current application.
+
+===============================================================================
+13. WHAT WE ALREADY HAVE VS. WHAT WE WOULD BUILD
+===============================================================================
+
+ALREADY IMPLEMENTED
+- Windows tray companion and floating WinUI interface.
+- Nova, Lumi and Kairo profiles with original art and saved preferences.
+- Synthetic wearable scenarios and mock work context.
+- Explainable demo scoring and persistent peak-stress prompts.
+- Simulated Attention Shield and focus summaries.
+- Breathing, screen, water and movement breaks.
+- IWearableProvider architecture, replay provider and future-provider stubs.
+- Local demo persistence, tests and self-contained presentation build.
+
+PROPOSED NEW WORK
+- Mobile companion applications and platform health permissions.
+- Health Connect, Samsung-specific and HealthKit adapters as appropriate.
+- Secure pairing, transport and device revocation.
+- Source-aware synchronization records and per-metric freshness.
+- PhoneBridgeWearableProvider and connected-mode UI.
+- Sensitive-data storage, retention and deletion controls.
+- Conservative real-data interpretation and real-device validation.
+
+The desktop UI and provider boundary are reusable foundations. They do not mean
+that the phone bridge, security model or live-data analysis already exists.
+
+===============================================================================
+14. SUMMARY PITCH / PROPOSED NEXT DECISION
+===============================================================================
+
+PulsePal Connect would turn the phone into a consent-based bridge between the
+health ecosystem a person already uses and the desktop where they work.
+
+We do not need to start with a universal wearable integration or a cloud platform.
+We can start with one Android phone, one compatible data source, three useful
+record types and a secure local Sync now experience.
+
+The proposed next decision is to select the first phone/wearable combination
+and approve a read-only Android Health Connect feasibility prototype.
+
+The goal is simple: real information, honestly represented, delivered through
+a companion that helps make room for both focused work and recovery.
+
+===============================================================================
+15. OFFICIAL TECHNICAL REFERENCES
+===============================================================================
+
+Android Health Connect:
+https://developer.android.com/health-and-fitness/health-connect
+https://developer.android.com/health-and-fitness/health-connect/get-started
+
+Samsung Health Data SDK:
+https://developer.samsung.com/health/data/overview.html
+https://developer.samsung.com/health/data/process.html
+
+Apple HealthKit and health/fitness development:
+https://developer.apple.com/documentation/healthkit
+https://developer.apple.com/health-fitness/
+
+Possible later vendor paths:
+https://developer.garmin.com/gc-developer-program/health-api/
+https://developer.garmin.com/health-sdk/overview/
+https://cloud.ouraring.com/v2/docs
+
+Platform availability, permissions, review requirements and policies can change.
+Reconfirm them against the chosen hardware and current SDK documentation before
+committing to implementation or distribution.
+
+END OF PITCH

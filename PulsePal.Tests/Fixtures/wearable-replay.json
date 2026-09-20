@@ -1,0 +1,29 @@
+[
+  {
+    "timestamp": "2026-09-20T09:00:00Z",
+    "heartRate": 72, "restingHeartRate": 60, "heartRateVariability": 62,
+    "stressLevel": 28, "steps": 1200, "calories": 680, "activeMinutes": 12,
+    "sleepScore": 88, "totalSleepMinutes": 465,
+    "deepSleepMinutes": 95, "remSleepMinutes": 110, "lightSleepMinutes": 260,
+    "readinessScore": 82, "recoveryScore": 78, "bodyBattery": 75,
+    "bloodOxygen": 98, "respirationRate": 14, "focusScore": null
+  },
+  {
+    "timestamp": "2026-09-20T09:00:02Z",
+    "heartRate": 75, "restingHeartRate": 60, "heartRateVariability": 59,
+    "stressLevel": 34, "steps": 1200, "calories": 680.04, "activeMinutes": 12,
+    "sleepScore": 88, "totalSleepMinutes": 465,
+    "deepSleepMinutes": 95, "remSleepMinutes": 110, "lightSleepMinutes": 260,
+    "readinessScore": 79, "recoveryScore": 75, "bodyBattery": 73,
+    "bloodOxygen": 98, "respirationRate": 14.5, "focusScore": null
+  },
+  {
+    "timestamp": "2026-09-20T09:00:04Z",
+    "heartRate": 78, "restingHeartRate": 60, "heartRateVariability": 55,
+    "stressLevel": 40, "steps": 1200, "calories": 680.08, "activeMinutes": 12,
+    "sleepScore": 88, "totalSleepMinutes": 465,
+    "deepSleepMinutes": 95, "remSleepMinutes": 110, "lightSleepMinutes": 260,
+    "readinessScore": 76, "recoveryScore": 72, "bodyBattery": 70,
+    "bloodOxygen": null, "respirationRate": 15, "focusScore": null
+  }
+]
