@@ -66,11 +66,13 @@ The workspace contains four projects:
 PulsePal.App
   The Windows application: tray integration, animated companion popup, MVVM
   presentation state, profile/preferences window, developer controls, recovery
-  interactions, dependency injection and a hosted sampling service.
+  interactions, accessible guided presenter, comparison/session story,
+  dependency injection and a hosted sampling service.
 
 PulsePal.Core
   Platform-independent contracts, wellness analysis, notification filtering,
-  cooldown rules, companion identities, recovery definitions and timer logic.
+  cooldown rules, companion identities, recovery definitions and timer logic,
+  guided tour/events, pause-aware session clock, ledger and snapshot comparisons.
 
 PulsePal.Infrastructure
   Synthetic and replay wearable providers, future integration stubs, simulated
@@ -135,9 +137,11 @@ evolve without replacing the entire application.
 The application creates a real Windows system-tray icon. It may initially appear
 inside the hidden-icons overflow area, depending on Windows settings.
 
-Click the icon to bring back the companion. Its context menu provides routes to
-focus, recovery activities, profile/preferences, developer controls and exit.
-Closing a companion window is not the same as exiting the application.
+Click the icon to bring back the companion. The companion menu includes
+"A day with PulsePal...", "Comparison & Session story" and "Meet <companion>".
+The tray also provides presentation/story/Meet routes alongside focus, recovery,
+profile/preferences, developer controls and exit. Opening the presenter does not
+start or reset a session. Closing a window is not the same as exiting the app.
 
 The floating companion:
 - Appears near the bottom-right of the selected monitor's usable work area.
@@ -198,6 +202,13 @@ screen break. The artwork is isolated in a reusable control for later replacemen
 
 Personality currently means authored greeting, focus and recovery phrasing.
 It does not mean an autonomous personality model or open-ended AI conversation.
+
+Applying a different profile triggers its authored introduction; saving unchanged
+preferences does not. Meet <companion> replays it from the companion/tray,
+profile window or presenter. Automatic introductions defer during recovery,
+an active peak prompt, a paused tour or snooze. Explicit Meet during recovery,
+peak or pause uses a noninterrupting banner, preserving the prompt and timer;
+as an explicit user request it can replay during snooze.
 
 ===============================================================================
 7. WEARABLE DATA MODEL
@@ -445,12 +456,19 @@ Gentle movement - 2 minutes
   An invitation to change position, relax shoulders or move comfortably. Seated
   movement is welcome and painful movements should be skipped.
 
+The durations above apply with acceleration off (the default). Opt-in Accelerated
+demo instead previews EVERY activity for 15 actual seconds while retaining its
+catalog duration as represented time. Breathing in this mode is a non-guided
+illustration, never compressed inhale/hold/exhale instruction. See section 16A.
+
 Shared recovery behavior:
 - Timers use monotonic elapsed time rather than wall-clock changes.
 - Only one recovery activity can run at a time.
-- Completion is recognized exactly once and only after the full duration.
+- Completion is recognized exactly once and only after the configured actual
+  duration: full catalog duration normally, or 15 seconds in accelerated preview.
 - Cancelling never earns a completion effect.
-- Hiding does not cancel, restart or pause the activity.
+- Hiding does not cancel, restart or pause the activity; guided-tour Pause does
+  freeze the recovery clock, and paused time is excluded on Resume.
 - Reopening shows the remaining time.
 - Active timers stay visible unless explicitly hidden.
 - Completion presents a companion message, including profile-specific phrasing.
@@ -498,7 +516,92 @@ It displays:
 Controls allow all six scenarios, focus start/end, escalation and FYI simulation,
 all four recovery activities, cancellation, hiding a timer, showing the companion
 and updating basic preferences. The profile window offers the richer personal
-companion selection experience.
+companion selection experience. The guide owns scenarios, focus and scripted
+notifications while active; Stop it before using unscripted demo controls.
+
+===============================================================================
+16A. SEVEN IMPLEMENTED DEMO-PRESENTATION FEATURES
+===============================================================================
+
+1. Accessible "A day with PulsePal" guided presenter
+   The companion menu and tray expose the presenter without developer controls.
+   Named controls, keyboard-accessible actions, headings, a scrollable layout and
+   polite live status announcements support accessibility. Start... confirms a
+   fresh-session reset before discarding current simulated work or cancelling a
+   break without benefit. Cancel leaves the session unchanged.
+
+   Seven steps run automatically: Briefing -> Focus -> Interruptions -> Meeting
+   stress -> Recovery -> Comparison -> Summary. Briefing, Focus and Comparison
+   default to 8 seconds each; Interruptions takes 12 seconds. Meeting stress has
+   an 8-second minimum and waits for actual correlated synthetic peak readiness:
+   stress at least 90/100 sustained for 10 seconds. This can take substantially
+   longer than 8 seconds; neither Next nor acceleration fabricates that peak.
+   Recovery remains until the break is completed or cancelled; Summary remains
+   available rather than looping automatically.
+
+   Next shortens ordinary narrative waits, but respects peak readiness and cannot
+   skip unresolved recovery or complete a running timer. Pause freezes scenario
+   sampling, tour progress, focus accounting and recovery timing during the tour.
+   Resume excludes paused wall time. Stop cancels an unfinished break with no
+   benefit, ends focus, disables acceleration and returns to ordinary wall-clock
+   mode/Healthy Day. Session story remains available; Stop is not a ledger reset.
+
+2. Optional accelerated recovery previews
+   Accelerated demo defaults OFF, is never saved, and requires synthetic data.
+   ALL four activities take 15 actual seconds in preview mode, representing their
+   catalog durations: breathing 60 seconds, screen break 300 seconds, water
+   60 seconds and movement 120 seconds. Breathing is a non-guided illustration,
+   not fast breathing instruction. Acceleration changes recovery duration only,
+   not stress readiness. With it off, the full ordinary durations apply.
+
+   Recovery opens an 8-second selection window. After that the saved preferred
+   break starts automatically unless an alternative was selected. Start selected
+   recovery starts it sooner. Start initializes the choice from PreferredBreak;
+   a session-only alternative never changes that saved preference. Acceleration
+   and recovery choice cannot change during an active break or while paused.
+
+3. Before/after comparison based on snapshots
+   Comparison & Session story displays analysis stress score, wearable recovery
+   score and heart rate (bpm) from pre-break and completion snapshots, with actual
+   after-minus-before deltas. Missing/non-finite values and unavailable deltas are
+   labelled unavailable, not zero. Unchanged or worsening values are preserved,
+   not turned into a success claim. Cancellation creates no completion benefit
+   or success comparison. Synthetic before/after changes are not guaranteed
+   health outcomes or evidence that a break caused a physiological improvement.
+
+4. Session story / End-of-demo summary
+   An in-memory ledger records actual focus elapsed (including an active session),
+   completed focus sessions, deferred and urgent-allowed synthetic notifications
+   during focus, and completed/cancelled breaks. Completed breaks keep individual
+   comparisons and totals by activity and real-time/accelerated mode. Actual
+   elapsed and represented catalog time are separate; guided paused time is
+   excluded from focus and recovery accounting. A 15-second screen-break preview
+   is not five actual minutes away or five minutes of productivity gained.
+   Totals are session-only, not calendar-day reporting or persistent analytics.
+
+5. Profile introductions and Meet replay
+   A changed profile introduces its authored identity; Meet replays the selected
+   companion. Automatic introductions defer during break/peak/paused/snoozed
+   states. Explicit Meet preserves recovery/peak/pause with a banner instead of
+   replacing the current prompt; a user-requested replay may bypass snooze.
+
+6. Exactly-once scripted synthetic interruptions
+   Interruptions schedules FYI email at entry, group chat after 3 seconds and a
+   manager approval after 6 seconds. Meeting stress schedules a meeting reminder
+   at entry and customer escalation after 4 seconds. FYI/chat defer during focus;
+   manager/reminder/escalation pass through. Manual advancement flushes remaining
+   events for the departing step without duplicates. Recovery ends focus and
+   releases queued items. No real notification stream is intercepted.
+
+7. Confirmed, repeatable fresh-session reset
+   Start and Reset both ask before clearing simulated work. They reset the seeded
+   synthetic runtime, trend/sleep burden, history, cooldown/snooze, notification
+   queues, focus, recovery timers, peak state, comparisons, event-delivery tracking
+   and session counters. Saved preferences and companion identity are preserved.
+   Reset returns to idle ordinary mode with acceleration off; Start begins the
+   seven-step tour anew. Reset cancels an active break without granting benefit
+   and clears the session ledger rather than retaining a cancellation count.
+   These lifecycle resets are synthetic-only: replay/live data is not reset.
 
 ===============================================================================
 17. LOCAL STORAGE, PRIVACY AND ERROR HANDLING
@@ -514,6 +617,13 @@ Saved data includes display and reminder preferences, companion selection,
 preferred break, popup duration, scenario, companion state, save timestamp and
 bounded demo history. History retains up to 500 engine entries; this is not a
 long-term health-record database.
+
+The session ledger, comparisons and acceleration setting are not persisted.
+While the guided clock is active, saves preserve pre-tour ordinary scenario and
+history with current preferences rather than writing tour history as ordinary
+history. Smoke runs use isolated test state/log paths (section 20). Optional
+--state-path and --log-directory overrides are for testing; normal launches
+without overrides retain the LocalAppData locations documented here.
 
 JsonStateStore validates input and serializes through System.Text.Json. Writes
 use a same-directory temporary file followed by replacement/rename. Concurrent
@@ -532,9 +642,14 @@ clinical-record system. Exit the app before removing its local data to reset it.
 18. SOURCE-CODE MAP
 ===============================================================================
 
-Key application files:
-- App.xaml / App.xaml.cs: WinUI startup, host/DI registration and shutdown.
+Key application files (under PulsePal.App):
+- App.xaml / App.xaml.cs: WinUI startup, DI, isolated smoke state/log path options,
+  failure reports and shutdown.
 - AppController.cs: interaction orchestration, recovery, persistence and smoke run.
+- AppController.Presentation.cs: tour lifecycle, intros, comparisons and ledger UI.
+- AppController.PresentationSmoke.cs: two-cycle presentation UI exercise/report.
+- PresenterWindow.cs: accessible presenter, confirmation dialogs and story panel.
+- ViewModels\PresenterViewModel.cs: presenter bindings and command eligibility.
 - CompanionWindow.xaml / .cs: popup layout, animations and monitor placement.
 - ViewModels\CompanionViewModel.cs: observable popup properties and commands.
 - Controls\CompanionAvatar.xaml / .cs: original three-profile, eight-state art.
@@ -552,11 +667,17 @@ Key core files:
 - CooldownPolicy.cs: ordinary cooldown, snooze and bounded peak escalation.
 - CompanionProfiles.cs: names, personalities, palette identifiers and phrases.
 - RecoveryActivities.cs: activity titles, durations and instructions.
-- RecoverySession.cs: testable monotonic timer and completion semantics.
+- RecoverySession.cs: monotonic timer, actual/represented duration and completion.
+- GuidedTour.cs: seven-step state machine, timing and peak/recovery gates.
+- GuidedEvents.cs: exactly-once scripted synthetic notifications.
+- SessionClock.cs: pause-aware monotonic time and presentation wall date.
+- SessionLedger.cs: in-memory focus/notification/break totals and SessionStory.
+- RecoveryComparison.cs: nullable snapshot values and after-minus-before deltas.
 
 Key infrastructure files:
-- DemoEngine.cs: provider-independent orchestration and synthetic recovery effects.
-- SyntheticWearableProvider.cs: correlated scenario engine.
+- DemoEngine.cs: provider-independent orchestration, synthetic recovery effects,
+  presentation lifecycle, stale-snapshot rejection, Clock and Ledger.
+- SyntheticWearableProvider.cs: correlated scenario engine and runtime reset.
 - ReplayWearableProvider.cs: validated sequential playback.
 - MockWorkContextProvider.cs: simulated productivity context.
 - GarminProviderStub.cs / OuraProviderStub.cs: explicit future-provider boundaries.
@@ -566,18 +687,38 @@ Key test groups:
 CoreTests, EngineTests, ProviderTests, PersistenceTests, AtomicRenameTests,
 ReplayFixtureTests, CompanionPreferencesTests, PeakStressTests,
 RecoverySessionTests and RecoveryEngineTests, plus replay fixtures.
+Presentation coverage adds GuidedTourTests, GuidedEventsTests, SessionClockTests,
+SessionLedgerTests, RecoveryPrimitiveTests and PresentationEngineTests.
+
+Programmatic presentation API:
+- AppController exposes ShowPresenter, StartPresentation, PausePresentation,
+  ResumePresentation, NextPresentation, ResetPresentation and StopPresentation.
+  UI Start/Reset commands confirm through PresenterViewModel/PresenterWindow;
+  synchronous controller lifecycle calls do NOT display confirmation themselves.
+- AcceleratedDemo and SelectedPresentationBreak configure session-only recovery;
+  StartSelectedPresentationRecovery starts it. Tour, SessionStory and
+  LastComparison expose current state. ShowSessionStory opens the story panel;
+  MeetCompanion requests/replays the selected identity's introduction.
+- DemoEngine exposes SupportsPresentation, PeakStressEstablished, Clock, Ledger
+  and Start/Reset/Stop/Pause/ResumePresentation. GuidedTour.Start/Update/Next/Stop
+  handles progression; Update/Next enforce peak and recovery readiness at their
+  respective steps.
+- SessionClock supplies pause-aware TimeProvider timestamps; SessionLedger
+  records focus, notification and recovery events and produces Snapshot(now).
+  RecoveryComparison.Capture(before, after, synthetic, accelerated) retains
+  nullable source scores and derives deltas without inventing improvement.
 
 ===============================================================================
 19. VALIDATION AND ENGINEERING WORK COMPLETED
 ===============================================================================
 
-Recorded results from the latest implementation cycle:
-- Release and Debug solution builds completed successfully.
-- Visual Studio application build completed successfully.
-- 285 unit tests passed, including the original 199-test baseline.
-- 48 full desktop smoke checks passed in the latest integrated run.
-- The published application was launched with developer controls and confirmed
-  responsive after the launcher returned.
+Reported results for the current implementation (not rerun for this docs update):
+- Debug and Release builds passed; 519 unit tests passed.
+- Agent reports recorded 87 presentation and 48 legacy UI smoke checks passed.
+- Independent main verification is running; its result is not yet claimed here.
+
+Earlier validation also recorded a successful Visual Studio application build
+and a published launch with developer controls responsive after launcher exit.
 
 Coverage includes correlated values and valid ranges, scenario transitions,
 nullable data, replay validation, focus detection, sustained stress, burnout-risk
@@ -589,6 +730,12 @@ Desktop coverage includes actual WinUI/tray initialization, opening the profile
 window, applying/rendering all three identities, expression transitions, peak
 prompt persistence, snooze, hidden timers, focus ending for breaks, an actual
 60-second breathing activity, and ordinary popup expiration.
+
+Presentation coverage adds two tour cycles, actual correlated peak readiness,
+manual Next gates, exactly-once scripted events, pause/resume exclusion of paused
+time, selected/default recovery, 15-actual/300-represented screen-break previews,
+snapshot comparisons, ledger totals, introductions, reset and return to ordinary
+sampling. Unit tests cover recovery primitives, clock/ledger and lifecycle logic.
 
 Five-minute screen-break timing is also tested with a controllable monotonic
 clock. Passing tests demonstrate covered behaviors; they do not replace broader
@@ -624,14 +771,41 @@ Publish a self-contained x64 distribution:
 
   dotnet publish .\PulsePal.App\PulsePal.App.csproj -c Release -p:Platform=x64 -r win-x64 --self-contained true -o .\artifacts\PulsePal
 
-Run the expanded desktop exercise:
+Run the presentation exercise (two tour cycles; allow roughly three minutes):
+
+  .\artifacts\PulsePal\PulsePal.App.exe --smoke-test-presentation
+
+It waits for real correlated synthetic peak stress and uses accelerated recovery
+previews, not an accelerated stress clock. It writes smoke-test-presentation.json
+and exits. The report includes checks, errors, cycles and storage/log paths.
+
+Run the legacy expanded desktop exercise (approximately two minutes):
 
   .\artifacts\PulsePal\PulsePal.App.exe --smoke-test --smoke-test-full
 
-The full exercise takes approximately two minutes and exits afterward. It writes
-smoke-test.json, smoke-test.png and profile-*.png in the local PulsePal directory.
-Run it with other PulsePal instances closed. It uses the local demo state and
-restores the original preferences and scenario after the exercise.
+It writes smoke-test.json, smoke-test.png and profile-*.png, then exits. Check
+report results and process exit status rather than assuming launch means pass.
+
+ALL smoke flags (--smoke-test-presentation, --smoke-test, --smoke-test-full) now
+use isolated state by default under the CURRENT WORKING DIRECTORY:
+
+  artifacts\presentation-smoke-<guid>\state.json
+
+Diagnostics and reports default to that same new per-run directory. Smoke runs
+no longer load or modify ordinary LocalAppData state; any restoration within the
+exercise concerns its isolated test state. Avoid interacting with other PulsePal
+windows during UI checks so observations remain unambiguous.
+
+Optional TEST-ONLY overrides (use a fresh state filename on every invocation):
+
+  .\artifacts\PulsePal\PulsePal.App.exe --smoke-test-presentation --state-path .\artifacts\presentation-check-01\state.json --log-directory .\artifacts\presentation-check-01\logs
+
+--state-path must identify a NEW isolated file. Smoke startup rejects an existing
+file or the ordinary user-state path and creates the new state exclusively.
+--log-directory redirects reports/diagnostics; smoke logs cannot use the ordinary
+user-state directory. Both options require one path argument. Without overrides,
+normal non-smoke launches still use %LOCALAPPDATA%\PulsePal\state.json and
+%LOCALAPPDATA%\PulsePal\app.log, not the smoke artifacts directory.
 
 For Visual Studio, open PP_code.slnx or PulsePal.sln, choose x64 and set
 PulsePal.App as the startup project. Building requires .NET 10 and Windows/WinUI
@@ -643,28 +817,35 @@ artifacts\PulsePal folder. No signing certificate is required for this local
 unpackaged demonstration; signed installation is a future distribution concern.
 
 ===============================================================================
-21. SUGGESTED PRESENTATION STORY
+21. RECOMMENDED LIVE PRESENTATION WALKTHROUGH
 ===============================================================================
 
-1. Introduce the tagline and explain that PulsePal is a companion, not another
-   dashboard. Point out the tray icon and the synthetic-data disclaimer.
-2. Show the personalized briefing and open Profile & preferences. Preview Nova,
-   Lumi and Kairo, change an expression, select a preferred break and apply.
-3. Start focus. Simulate an FYI email, then an escalation. Explain why one waits
-   and the other is allowed. End focus and show the real session summary.
-4. Select Rising Stress or Meeting Overload. Observe the correlated signals and
-   explanation text, then the stronger prompt when peak stress persists.
-5. Select a five-minute screen break. Hide and reopen its timer to demonstrate
-   continuity. Cancel if presentation time is limited; explain that cancellation
-   intentionally gives no recovery effect.
-6. Complete a one-minute breathing activity to show the animation and resulting
-   synthetic recovery trend. Point out the alternative water/movement choices.
-7. Close by explaining privacy, offline operation and provider-based extensibility.
+1. Introduce the tagline, tray-first design and synthetic-data/medical disclaimer.
+   Choose a profile and preferred break in Profile & preferences; demonstrate Meet.
+2. Open A day with PulsePal from the companion menu. Optionally enable Accelerated
+   demo for a shorter presentation, explaining its 15-second previews. Leave it
+   off to demonstrate real-duration recovery. Click Start... and confirm reset.
+3. Let Briefing, Focus and Interruptions run automatically. Explain deferred FYI
+   and chat versus urgent approvals/reminders/escalations. Pause to talk, then
+   Resume; guided paused time does not count as focus or recovery.
+4. Let Meeting stress wait for the actual correlated peak. Next cannot force it.
+   At Recovery choose an alternative within 8 seconds, start it explicitly, or
+   let the saved preferred break start automatically. Allow completion. An
+   accelerated screen break is 15 actual seconds representing five minutes;
+   accelerated breathing is an illustration, not guided fast breathing.
+5. Show the actual before/after values and deltas, including any unavailable or
+   non-improving values, then Session story. Distinguish actual focus/recovery
+   elapsed from represented duration; none proves productivity or health gains.
+6. Stop returns to ordinary mode and retains the story. Reset... confirms a clean
+   idle session for another Start, preserving preferences. Close with privacy,
+   offline operation and provider extensibility. Do not imply real notification
+   interception or live wearable measurements.
 
-Allow time for trend-based escalation; this is not an instant scenario button
-that jumps all numbers to maximum. Existing snooze and sleep burden are preserved
-across scenario changes. Do not imply that notification filtering is operating on
-real Teams, email or Windows notifications.
+For an optional manual appendix, Stop the guide, open developer controls and
+compare all six scenarios. Show Hide timer/reopen and cancellation without a
+benefit; complete ordinary one-minute breathing only if time permits. Scenario
+changes preserve snooze and sleep burden, unlike a confirmed fresh-session reset.
+Allow time for trend-based escalation rather than expecting instant maximums.
 
 ===============================================================================
 22. CURRENT LIMITATIONS AND WHAT IS NOT IMPLEMENTED

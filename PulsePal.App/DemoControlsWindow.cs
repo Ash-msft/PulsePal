@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using CommunityToolkit.Mvvm.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
@@ -33,6 +34,8 @@ public sealed class DemoControlsWindow : Window
     private readonly StackPanel _notifications = new() { Spacing = 8 };
     private readonly StackPanel _history = new() { Spacing = 8 };
     private readonly Button _focusButton = new() { Content = "Start focus", MinHeight = 40 };
+    private readonly Button _meetButton;
+    private readonly List<IRelayCommand> _stateCommands = new();
     private readonly Dictionary<DemoScenario, Button> _scenarioButtons = new();
     private readonly TextBox _displayName = new() { Header = "Display name", MaxLength = 80 };
     private readonly ToggleSwitch _hydration = new()
@@ -65,6 +68,14 @@ public sealed class DemoControlsWindow : Window
             Foreground = Brush(245, 247, 252), TextWrapping = TextWrapping.Wrap
         });
         page.Children.Add(Body("Drive synthetic scenarios, inspect decisions, and test companion interactions. This is a developer window, not the main dashboard."));
+        _meetButton = ActionButton(
+            $"Meet {CompanionProfiles.Get(_controller.Engine.Preferences.CompanionProfile).Name}",
+            _controller.MeetCompanion);
+        page.Children.Add(Card(Section("Presentation & session",
+            Body("Open the presenter without starting or resetting a presentation, or review the current session story."),
+            ActionButton("Open presenter", _controller.ShowPresenter),
+            ActionButton("Session story", _controller.ShowSessionStory),
+            _meetButton)));
         page.Children.Add(Card(new StackPanel
         {
             Spacing = 8,
@@ -99,7 +110,7 @@ public sealed class DemoControlsWindow : Window
         {
             if (scenarioIndex % 2 == 0)
                 scenarioGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            var button = ActionButton(ScenarioName(scenario), () => _controller.SetScenario(scenario));
+            var button = ActionButton(ScenarioName(scenario), () => _controller.SetScenario(scenario), CanChangeActivity);
             button.HorizontalAlignment = HorizontalAlignment.Stretch;
             Grid.SetRow(button, scenarioIndex / 2);
             Grid.SetColumn(button, scenarioIndex % 2);
@@ -110,17 +121,19 @@ public sealed class DemoControlsWindow : Window
         scenarios.Children.Add(scenarioGrid);
         page.Children.Add(Card(scenarios));
 
-        _focusButton.Click += (_, _) => _controller.ToggleFocus();
+        var focusCommand = new RelayCommand(_controller.ToggleFocus, CanChangeActivity);
+        _focusButton.Command = focusCommand;
+        _stateCommands.Add(focusCommand);
         var focusActions = new StackPanel { Spacing = 10 };
         focusActions.Children.Add(_focusButton);
-        focusActions.Children.Add(ActionButton("Simulate escalation · urgent", () => _controller.SimulateNotification(NotificationKind.Escalation)));
-        focusActions.Children.Add(ActionButton("Simulate FYI email · low priority", () => _controller.SimulateNotification(NotificationKind.FyiEmail)));
+        focusActions.Children.Add(ActionButton("Simulate escalation · urgent", () => _controller.SimulateNotification(NotificationKind.Escalation), () => !_controller.IsPresentationPaused));
+        focusActions.Children.Add(ActionButton("Simulate FYI email · low priority", () => _controller.SimulateNotification(NotificationKind.FyiEmail), () => !_controller.IsPresentationPaused));
         foreach (var option in RecoveryActivities.All)
-            focusActions.Children.Add(ActionButton($"{option.Title} · {option.Duration.TotalMinutes:0} min", () => _controller.StartRecovery(option.Activity)));
-        focusActions.Children.Add(ActionButton("Cancel active break (no benefit)", _controller.CancelRecovery));
-        focusActions.Children.Add(ActionButton("Hide timer (break continues)", _controller.HideRecoveryTimer));
+            focusActions.Children.Add(ActionButton($"{option.Title} · {option.Duration.TotalMinutes:0} min", () => _controller.StartRecovery(option.Activity), CanChangeActivity));
+        focusActions.Children.Add(ActionButton("Cancel active break (no benefit)", _controller.CancelRecovery, () => _controller.ActiveRecovery is not null));
+        focusActions.Children.Add(ActionButton("Hide timer (break continues)", _controller.HideRecoveryTimer, () => _controller.ActiveRecovery is not null));
         focusActions.Children.Add(ActionButton("Show companion", _controller.ShowCompanion));
-        focusActions.Children.Add(ActionButton("Meet your companion / Profile & preferences", _controller.ShowProfile));
+        focusActions.Children.Add(ActionButton("Profile & preferences", _controller.ShowProfile));
         page.Children.Add(Card(Section("Focus & companion actions", _focusStatus, _recoveryStatus, focusActions)));
         page.Children.Add(Card(Section("AI decision & reasons", Body("Demo analysis and explanations from the engine; not clinical advice."), _decision, _reasons, _lastMessage)));
         page.Children.Add(Card(Section("Notification & activity log", _notificationStatus,
@@ -162,6 +175,12 @@ public sealed class DemoControlsWindow : Window
         if (IsClosed)
             return;
 
+        foreach (var command in _stateCommands)
+            command.NotifyCanExecuteChanged();
+        var meetLabel = $"Meet {CompanionProfiles.Get(_controller.Engine.Preferences.CompanionProfile).Name}";
+        if (_meetButton.Content is TextBlock meetText)
+            meetText.Text = meetLabel;
+        AutomationProperties.SetName(_meetButton, meetLabel);
         _status.Text = string.IsNullOrWhiteSpace(_controller.Status) ? "No storage status reported yet." : _controller.Status;
         _lastMessage.Text = string.IsNullOrWhiteSpace(_controller.LastMessage) ? "No companion message yet." : "Latest message: " + _controller.LastMessage;
         _heartRate.Text = Score(snapshot?.Wearable.HeartRate);
@@ -316,16 +335,20 @@ public sealed class DemoControlsWindow : Window
         Padding = new Thickness(12, 5, 0, 5), Child = Body(text)
     };
 
-    private static Button ActionButton(string text, Action action)
+    private bool CanChangeActivity() => !_controller.IsPresentationPaused && _controller.ActiveRecovery is null;
+
+    private Button ActionButton(string text, Action action, Func<bool>? canExecute = null)
     {
+        var command = canExecute is null ? new RelayCommand(action) : new RelayCommand(action, canExecute);
+        if (canExecute is not null) _stateCommands.Add(command);
         var button = new Button
         {
             Content = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap },
             MinHeight = 40, Padding = new Thickness(14, 9, 14, 9),
-            HorizontalAlignment = HorizontalAlignment.Left
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Command = command
         };
         AutomationProperties.SetName(button, text);
-        button.Click += (_, _) => action();
         return button;
     }
 

@@ -16,13 +16,17 @@
                         <Button Content="···" HorizontalAlignment="Right" Padding="10,0" MinHeight="30" AutomationProperties.Name="Companion menu">
                             <Button.Flyout>
                                 <MenuFlyout>
-                                    <MenuFlyoutItem x:Name="ProfileMenuItem" Text="Meet your companion / Profile &amp; preferences" Command="{x:Bind ViewModel.ShowProfileCommand}"/>
+                                    <MenuFlyoutItem Text="A day with PulsePal…" Command="{x:Bind ViewModel.ShowPresenterCommand}"/>
+                                    <MenuFlyoutItem Text="Comparison &amp; Session story" Command="{x:Bind ViewModel.ShowStoryCommand}"/>
+                                    <MenuFlyoutItem Text="{x:Bind ViewModel.MeetText, Mode=OneWay}" Command="{x:Bind ViewModel.MeetCommand}"/>
+                                    <MenuFlyoutItem x:Name="ProfileMenuItem" Text="Profile &amp; preferences" Command="{x:Bind ViewModel.ShowProfileCommand}"/>
                                     <MenuFlyoutItem Text="Demo controls…" Command="{x:Bind ViewModel.ShowControlsCommand}"/>
                                     <MenuFlyoutItem Text="Exit PulsePal" Command="{x:Bind ViewModel.ExitCommand}"/>
                                 </MenuFlyout>
                             </Button.Flyout>
                         </Button>
                     </Grid>
+                    <TextBlock x:Name="PresentationLabel" Text="{x:Bind ViewModel.PresentationLabel, Mode=OneWay}" Visibility="Collapsed" FontSize="13" FontWeight="SemiBold" Foreground="#79E9FF" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
                     <InfoBar x:Name="Banner" IsOpen="False" Severity="Informational" IsClosable="True"/>
                     <controls:CompanionAvatar x:Name="Avatar" Width="180" Height="160" HorizontalAlignment="Center"/>
                     <Border x:Name="PeakPanel" Visibility="Collapsed" Background="#173651" BorderBrush="#70E4FF" BorderThickness="1" CornerRadius="12" Padding="12">

@@ -13,9 +13,11 @@ public sealed class SamplingService(DemoEngine engine, AppController controller,
         {
             while (await timer.WaitForNextTickAsync(stoppingToken))
             {
+                var generation = engine.Generation;
                 try
                 {
-                    var snapshot = await engine.TickAsync(DateTimeOffset.Now, stoppingToken);
+                    var snapshot = await engine.SampleAsync(stoppingToken);
+                    if (snapshot is null) continue;
                     if (!dispatcher.TryEnqueue(() => controller.AcceptSnapshot(snapshot)))
                         AppLog.Write("Sampling dispatch rejected", new InvalidOperationException("UI dispatcher is shutting down."));
                 }
@@ -23,7 +25,12 @@ public sealed class SamplingService(DemoEngine engine, AppController controller,
                 catch (Exception exception)
                 {
                     AppLog.Write("Sampling failed", exception);
-                    dispatcher.TryEnqueue(() => controller.ReportError("Synthetic sampling failed", exception));
+                    if (!dispatcher.TryEnqueue(() =>
+                    {
+                        if (engine.Generation == generation && !engine.IsPresentationPaused)
+                            controller.ReportError("Synthetic sampling failed", exception);
+                    }))
+                        AppLog.Write("Sampling error dispatch rejected", exception);
                 }
             }
         }

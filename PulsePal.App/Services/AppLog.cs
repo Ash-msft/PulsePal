@@ -5,7 +5,17 @@ namespace PulsePal.App.Services;
 public static class AppLog
 {
     private static readonly object Gate = new();
-    public static string DirectoryPath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PulsePal");
+    private static string _directoryPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PulsePal");
+    public static string DirectoryPath { get { lock (Gate) return _directoryPath; } }
+
+    public static void ConfigureDirectory(string directoryPath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(directoryPath);
+        var fullPath = Path.GetFullPath(directoryPath);
+        Directory.CreateDirectory(fullPath);
+        lock (Gate) _directoryPath = fullPath;
+    }
+
     public static void Write(string operation, Exception exception)
     {
         Trace.TraceError("{0}: {1}", operation, exception);

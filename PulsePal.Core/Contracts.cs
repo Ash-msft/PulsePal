@@ -48,7 +48,10 @@ public sealed record NotificationDecision(AttentionNotification Notification, bo
 public sealed record FocusSessionSummary(TimeSpan Duration, int DelayedCount, int UrgentCount);
 public sealed record DemoSnapshot(WearableSample Wearable, WorkContext Context, AnalysisResult Analysis,
     DemoScenario Scenario, bool IsFocusActive, DateTimeOffset? FocusStartedAt, int QueuedNotifications,
-    int UrgentNotifications, CompanionMessage? Message);
+    int UrgentNotifications, CompanionMessage? Message)
+{
+    public long Generation { get; init; }
+}
 
 public interface IWearableProvider
 {

@@ -23,6 +23,7 @@ public sealed partial class CompanionWindow : Window
     private bool _shown;
     private bool _hiding;
     private bool _activated;
+    private bool _acceleratedRecovery;
     private int _visibilityVersion;
     public bool IsUiReady { get; private set; }
     public bool HasError => ErrorBanner.IsOpen;
@@ -103,6 +104,7 @@ public sealed partial class CompanionWindow : Window
             if (Root.XamlRoot is not null)
                 ElementCompositionPreview.GetElementVisual(Card).CenterPoint = new Vector3((float)Card.ActualWidth / 2, (float)Card.ActualHeight / 2, 0);
         };
+        Closed += (_, _) => ViewModel.Dispose();
         PositionAtTaskbar();
     }
 
@@ -202,6 +204,27 @@ public sealed partial class CompanionWindow : Window
         ViewModel.MessageText = message.Text;
         Avatar.SetState(message.Character);
     }
+    public void PlayIntroduction(CompanionMessage message)
+    {
+        Avatar.SetState(CharacterState.Thinking);
+        SetMessage(message);
+        AnimateIn();
+    }
+
+    public void SetPresentationLabel(string text)
+    {
+        ViewModel.PresentationLabel = text;
+        PresentationLabel.Visibility = string.IsNullOrWhiteSpace(text) ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    public void ClearTransientPresentation()
+    {
+        Banner.IsOpen = false;
+        SetPresentationLabel(string.Empty);
+        SetPeakPrompt(null);
+        EndRecovery();
+    }
+
     public void SetCharacter(CharacterState state) => Avatar.SetState(state);
     public void SetFocus(bool active) => ViewModel.FocusActionText = active ? "End Focus Session" : "Start Focus Session";
     public void SetBanner(string text) { Banner.Message = text; Banner.IsOpen = true; }
@@ -212,6 +235,7 @@ public sealed partial class CompanionWindow : Window
         var profile = CompanionProfiles.Get(preferences.CompanionProfile);
         Avatar.SetProfile(preferences.CompanionProfile);
         ViewModel.CompanionIdentity = profile.Name + " · " + profile.Personality;
+        ViewModel.MeetText = $"Meet {profile.Name}";
         var option = RecoveryActivities.Get(preferences.PreferredBreak);
         ViewModel.RecommendedBreak = $"Your preferred break: {option.Title} · {option.Duration.TotalMinutes:0} min";
     }
@@ -234,21 +258,29 @@ public sealed partial class CompanionWindow : Window
 
     public void BeginBreathing() => BeginRecovery(RecoveryActivity.Breathing, string.Empty);
 
-    public void BeginRecovery(RecoveryActivity activity, string focusFeedback)
+    public void BeginRecovery(RecoveryActivity activity, string focusFeedback, bool accelerated = false)
     {
         var option = RecoveryActivities.Get(activity);
+        _acceleratedRecovery = accelerated;
+        var guidedBreathing = activity == RecoveryActivity.Breathing && !accelerated;
         Avatar.SetState(CharacterState.Resting);
-        ViewModel.MessageTitle = option.Title;
-        ViewModel.MessageText = option.Instructions;
-        BreathingPanel.Visibility = activity == RecoveryActivity.Breathing ? Visibility.Visible : Visibility.Collapsed;
-        RecoveryPanel.Visibility = activity == RecoveryActivity.Breathing ? Visibility.Collapsed : Visibility.Visible;
+        Avatar.SetBreathingProgress(0);
+        ViewModel.MessageTitle = accelerated ? $"Accelerated demo · {option.Title}" : option.Title;
+        ViewModel.MessageText = accelerated
+            ? $"15 actual seconds represents the configured duration ({option.Duration.TotalMinutes:0.#} min). " +
+              (activity == RecoveryActivity.Breathing
+                  ? "Non-guided breathing illustration only, not real breathing instruction. Do not follow a sped-up breathing rhythm."
+                  : "Illustration only; this preview does not measure a health outcome.")
+            : option.Instructions;
+        BreathingPanel.Visibility = guidedBreathing ? Visibility.Visible : Visibility.Collapsed;
+        RecoveryPanel.Visibility = guidedBreathing ? Visibility.Collapsed : Visibility.Visible;
         RecoveryActions.Visibility = Visibility.Visible;
         DismissActions.Visibility = Visibility.Collapsed;
         FocusEndedText.Text = focusFeedback;
         FocusEndedText.Visibility = focusFeedback.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         Banner.IsOpen = false;
-        if (activity == RecoveryActivity.Breathing) UpdateBreathing("Breathe in", 4, 1, 0, 0);
-        else UpdateRecovery(option.Duration, 0);
+        if (guidedBreathing) UpdateBreathing("Breathe in", 4, 1, 0, 0);
+        else UpdateRecovery(accelerated ? TimeSpan.FromSeconds(15) : option.Duration, 0);
         PositionAtTaskbar(!_shown);
     }
 
@@ -261,6 +293,11 @@ public sealed partial class CompanionWindow : Window
 
     public void UpdateBreathing(string phase, int seconds, int cycle, double progress, double expansion)
     {
+        if (_acceleratedRecovery)
+        {
+            UpdateRecovery(_controller.RecoveryRemaining, progress);
+            return;
+        }
         BreathingPhase.Text = $"{phase} · {seconds}";
         BreathingCycle.Text = $"Cycle {cycle} of 5 · {(int)Math.Ceiling((1 - progress) * 60)}s remaining";
         BreathingProgress.Value = progress;
@@ -271,6 +308,7 @@ public sealed partial class CompanionWindow : Window
 
     public void EndRecovery()
     {
+        _acceleratedRecovery = false;
         BreathingPanel.Visibility = RecoveryPanel.Visibility = RecoveryActions.Visibility = Visibility.Collapsed;
         FocusEndedText.Visibility = Visibility.Collapsed;
         DismissActions.Visibility = Visibility.Visible;

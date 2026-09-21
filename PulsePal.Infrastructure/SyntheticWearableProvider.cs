@@ -33,6 +33,31 @@ public sealed class SyntheticWearableProvider : IWearableProvider
         get { lock (_gate) return _scenario; }
     }
 
+    public void Reset(DemoScenario scenario = DemoScenario.HealthyDay)
+    {
+        if (!Enum.IsDefined(scenario)) throw new ArgumentOutOfRangeException(nameof(scenario));
+        lock (_gate)
+        {
+            _scenario = scenario;
+            _lastSampleAt = null;
+            _scenarioStartedAt = null;
+            _breathingUntil = null;
+            _day = null;
+            _poorSleep = false;
+            _wasWalking = false;
+            _walkingTicks = 0;
+            _calories = 0;
+            _stress = 30;
+            _heartRate = 73;
+            _hrv = 61.5;
+            _recovery = 72.1;
+            _respiration = 14.1;
+            _breathingStress = 0;
+            _breathingHeartRate = 0;
+            _lastContext = new();
+        }
+    }
+
     public void SetScenario(DemoScenario scenario)
     {
         if (!Enum.IsDefined(scenario)) throw new ArgumentOutOfRangeException(nameof(scenario));

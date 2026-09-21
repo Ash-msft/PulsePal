@@ -18,6 +18,8 @@ public sealed class DemoEngine
     private DemoScenario _scenario;
     private UserPreferences _preferences = new();
     private long _revision;
+    private long _generation;
+    private long _lifecycleVersion;
     private DateTimeOffset? _lastTickAt;
     private DateTimeOffset? _firstTickAt;
     private DateTimeOffset? _lastHydrationAt;
@@ -46,12 +48,29 @@ public sealed class DemoEngine
 
     public DemoEngine() : this(new SyntheticWearableProvider()) { }
 
-    public DemoEngine(IWearableProvider provider)
+    public DemoEngine(IWearableProvider provider, SessionClock? clock = null)
     {
         ArgumentNullException.ThrowIfNull(provider);
         _provider = provider;
+        Clock = clock ?? new SessionClock();
         if (provider is SyntheticWearableProvider synthetic)
             _scenario = synthetic.Scenario;
+    }
+
+    public SessionClock Clock { get; } = new();
+    public SessionLedger Ledger { get; } = new();
+    public bool SupportsPresentation => _provider is SyntheticWearableProvider;
+    public bool IsPresentationPaused { get { lock (_gate) return Clock.IsPresentation && Clock.IsPaused; } }
+    public long Generation { get { lock (_gate) return _generation; } }
+    public bool PeakStressEstablished
+    {
+        get { lock (_gate) return _peakEpisode && _current is { } current && IsPeak(current.Analysis); }
+    }
+
+    public bool IsCurrent(DemoSnapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        lock (_gate) return snapshot.Generation == _generation;
     }
 
     public DemoSnapshot? Current { get { lock (_gate) return _current; } }
@@ -79,8 +98,23 @@ public sealed class DemoEngine
         }
     }
 
-    public async Task<DemoSnapshot> TickAsync(DateTimeOffset now, CancellationToken cancellationToken = default)
+    public async Task<DemoSnapshot> TickAsync(DateTimeOffset now, CancellationToken cancellationToken = default) =>
+        await TickCoreAsync(now, cancellationToken).ConfigureAwait(false)
+        ?? throw new OperationCanceledException("The sampling lifecycle changed.", cancellationToken);
+
+    public Task<DemoSnapshot?> SampleAsync(CancellationToken ct = default) => TickCoreAsync(null, ct);
+
+    private async Task<DemoSnapshot?> TickCoreAsync(DateTimeOffset? requestedAt, CancellationToken cancellationToken)
     {
+        long generation;
+        long lifecycle;
+        lock (_gate)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (IsPresentationPaused) return null;
+            generation = _generation;
+            lifecycle = _lifecycleVersion;
+        }
         await _tickGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
@@ -88,10 +122,15 @@ public sealed class DemoEngine
             {
                 WorkContext context;
                 long revision;
+                DateTimeOffset now;
                 Task<WearableSample> request;
                 lock (_gate)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
+                    if (lifecycle != _lifecycleVersion || IsPresentationPaused ||
+                        (requestedAt is null && generation != _generation))
+                        return null;
+                    now = requestedAt ?? Clock.GetUtcNow();
                     if (_lastTickAt is { } last && now < last)
                         throw new ArgumentOutOfRangeException(nameof(now), "Tick times must be nondecreasing.");
                     context = _contexts.GetContext(_scenario);
@@ -100,13 +139,16 @@ public sealed class DemoEngine
                     request = _provider.GetSampleAsync(context, now, cancellationToken);
                 }
                 var sample = await request.ConfigureAwait(false);
-                ArgumentNullException.ThrowIfNull(sample);
                 lock (_gate)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
+                    if (lifecycle != _lifecycleVersion || IsPresentationPaused ||
+                        (requestedAt is null && generation != _generation))
+                        return null;
                     // A UI scenario change or restore invalidates the in-flight work context.
                     if (revision != _revision)
                         continue;
+                    ArgumentNullException.ThrowIfNull(sample);
                     _firstTickAt ??= now;
                     sample = ApplySyntheticRecovery(sample, now);
                     bool recovering = IsRecovering(now);
@@ -119,7 +161,7 @@ public sealed class DemoEngine
                     _pendingSessionMessage = null;
                     _current = new DemoSnapshot(sample, context, analysis, _scenario,
                         _shield.IsFocusActive, _shield.FocusStartedAt, _shield.PendingNotifications.Count,
-                        _shield.UrgentCount, message);
+                        _shield.UrgentCount, message) { Generation = _generation };
                     if (_lastTickAt != now)
                     {
                         _history.Enqueue(new DemoHistoryEntry(now, _scenario, analysis.State,
@@ -134,6 +176,103 @@ public sealed class DemoEngine
         finally { _tickGate.Release(); }
     }
 
+    public void StartPresentation()
+    {
+        lock (_gate)
+        {
+            EnsurePresentationSupported();
+            ResetRuntime(DemoScenario.HealthyDay);
+            Ledger.Reset();
+            Clock.Resume();
+            Clock.BeginPresentation(new DateTimeOffset(2026, 1, 1, 9, 0, 0, TimeSpan.Zero));
+            _lifecycleVersion++;
+        }
+    }
+
+    public void ResetPresentation()
+    {
+        lock (_gate)
+        {
+            EnsurePresentationSupported();
+            ResetRuntime(DemoScenario.HealthyDay);
+            Ledger.Reset();
+            Clock.EndPresentation();
+            Clock.Resume();
+            _lifecycleVersion++;
+        }
+    }
+
+    public void StopPresentation()
+    {
+        lock (_gate)
+        {
+            if (!Clock.IsPresentation) return;
+            EndFocus(Clock.GetUtcNow());
+            ResetRuntime(DemoScenario.HealthyDay);
+            Clock.EndPresentation();
+            Clock.Resume();
+            _lifecycleVersion++;
+        }
+    }
+
+    public void PausePresentation()
+    {
+        lock (_gate)
+        {
+            if (!Clock.IsPresentation || Clock.IsPaused) return;
+            Clock.Pause();
+            InvalidatePresentationMessages();
+        }
+    }
+
+    public void ResumePresentation()
+    {
+        lock (_gate)
+        {
+            if (!Clock.IsPresentation || !Clock.IsPaused) return;
+            Clock.Resume();
+            InvalidatePresentationMessages();
+        }
+    }
+
+    private void EnsurePresentationSupported()
+    {
+        if (!SupportsPresentation)
+            throw new NotSupportedException("Presentation mode requires the synthetic wearable provider; replay and live providers cannot be reset.");
+    }
+
+    private void InvalidatePresentationMessages()
+    {
+        _generation++;
+        _lifecycleVersion++;
+        _pendingSessionMessage = null;
+        if (_current is not null)
+            _current = _current with { Generation = _generation, Message = null };
+    }
+
+    private void ResetRuntime(DemoScenario scenario)
+    {
+        if (_provider is SyntheticWearableProvider synthetic) synthetic.Reset(scenario);
+        _scenario = scenario;
+        _history.Clear();
+        _shield.Reset();
+        _analyzer.Reset();
+        _cooldown.Reset();
+        _current = null;
+        _lastTickAt = null;
+        _firstTickAt = null;
+        _lastHydrationAt = null;
+        _recoveryAt = null;
+        _completedActivity = null;
+        _recoveryStress = null;
+        _recoveryHeartRate = null;
+        _recoveryActive = false;
+        ResetPeakStress();
+        _pendingSessionMessage = null;
+        _revision++;
+        _generation++;
+    }
+
     public void SetScenario(DemoScenario scenario)
     {
         if (!Enum.IsDefined(scenario)) throw new ArgumentOutOfRangeException(nameof(scenario));
@@ -143,6 +282,7 @@ public sealed class DemoEngine
             if (_provider is SyntheticWearableProvider synthetic) synthetic.SetScenario(scenario);
             _scenario = scenario;
             _revision++;
+            _generation++;
             // Keep the analyzer's daily sleep burden, cooldown and intervention history across scenarios.
             _current = null;
         }
@@ -152,7 +292,9 @@ public sealed class DemoEngine
     {
         lock (_gate)
         {
+            if (_shield.IsFocusActive) return;
             _shield.StartFocus(now);
+            Ledger.StartFocus(now);
             _pendingSessionMessage = null;
             RefreshFocusSnapshot(null);
         }
@@ -164,6 +306,7 @@ public sealed class DemoEngine
         {
             var summary = _shield.EndFocus(now);
             if (summary is null) return null;
+            Ledger.EndFocus(now);
             var message = new CompanionMessage("Focus session complete",
                 $"{summary.Duration.TotalMinutes:F1} minutes protected. Released {summary.DelayedCount} delayed notifications; " +
                 $"{summary.UrgentCount} priority notifications were allowed. See notification history for the released items.",
@@ -180,16 +323,24 @@ public sealed class DemoEngine
         {
             if (_recoveryActive == active) return;
             _recoveryActive = active;
+            _generation++;
             ResetPeakStress();
-            if (active)
-            {
-                _pendingSessionMessage = null;
-                if (_current is not null) _current = _current with { Message = null };
-            }
+            if (active) _pendingSessionMessage = null;
+            if (_current is not null)
+                _current = _current with { Generation = _generation, Message = null };
         }
     }
 
     public void CompleteBreathing(DateTimeOffset now) => CompleteRecovery(RecoveryActivity.Breathing, now);
+
+    public DemoSnapshot? CompleteRecoveryAndCapture(RecoveryActivity activity, DateTimeOffset now)
+    {
+        lock (_gate)
+        {
+            CompleteRecovery(activity, now);
+            return _current;
+        }
+    }
 
     /// <summary>Called only after a recovery timer completes; benefits are bounded synthetic demo estimates.</summary>
     public void CompleteRecovery(RecoveryActivity activity, DateTimeOffset now)
@@ -198,6 +349,7 @@ public sealed class DemoEngine
         lock (_gate)
         {
             if (_lastTickAt is { } last && now < last) now = last;
+            _generation++;
             _recoveryActive = false;
             _recoveryAt = now;
             _completedActivity = activity;
@@ -213,6 +365,7 @@ public sealed class DemoEngine
                     : _current.Analysis;
                 _current = _current with
                 {
+                    Generation = _generation,
                     Wearable = sample,
                     Analysis = ReportRecovery(analysis),
                     Message = null
@@ -221,12 +374,12 @@ public sealed class DemoEngine
         }
     }
 
-    public NotificationDecision SimulateNotification(NotificationKind kind, DateTimeOffset now)
+    public NotificationDecision SimulateNotification(NotificationKind kind, DateTimeOffset now, string? title = null)
     {
         if (!Enum.IsDefined(kind)) throw new ArgumentOutOfRangeException(nameof(kind));
         lock (_gate)
         {
-            var title = kind switch
+            title ??= kind switch
             {
                 NotificationKind.ManagerMessage => "Manager: please review the delivery plan",
                 NotificationKind.Escalation => "Escalation: a customer needs your help",
@@ -237,6 +390,7 @@ public sealed class DemoEngine
                 _ => "Low priority: background task completed"
             };
             var decision = _shield.Decide(new AttentionNotification(Guid.NewGuid(), now, kind, title));
+            Ledger.RecordNotification(decision, _shield.IsFocusActive);
             RefreshFocusSnapshot(_current?.Message);
             // The UI displays allowed notification decisions directly, independently of wellness snooze.
             return decision;
@@ -274,26 +428,10 @@ public sealed class DemoEngine
         var validated = JsonStateStore.Validate(state);
         lock (_gate)
         {
-            if (_provider is SyntheticWearableProvider synthetic) synthetic.SetScenario(validated.Scenario);
+            ResetRuntime(validated.Scenario);
+            Ledger.Reset();
             _preferences = validated.Preferences;
-            _scenario = validated.Scenario;
-            _history.Clear();
             foreach (var entry in validated.History) _history.Enqueue(entry);
-            _shield.Reset();
-            _analyzer.Reset();
-            _cooldown.Reset();
-            _current = null;
-            _lastTickAt = null;
-            _firstTickAt = null;
-            _lastHydrationAt = null;
-            _recoveryAt = null;
-            _completedActivity = null;
-            _recoveryStress = null;
-            _recoveryHeartRate = null;
-            _recoveryActive = false;
-            ResetPeakStress();
-            _pendingSessionMessage = null;
-            _revision++;
         }
     }
 

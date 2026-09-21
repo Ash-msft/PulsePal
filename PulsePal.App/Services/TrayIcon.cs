@@ -43,6 +43,7 @@ public sealed class TrayIcon : IDisposable
     private bool _retryTimerRunning;
     private bool _trackingMenu;
     private bool _focusActive;
+    private string _companionName = "Nova";
     private bool _disposed;
 
     /// <summary>Receives native and command-handler failures on the owning UI thread.</summary>
@@ -51,7 +52,8 @@ public sealed class TrayIcon : IDisposable
     public bool IsRegistered { get; private set; }
 
     /// <param name="command">
-    /// Called on the owning UI thread with show, focus, breathing, controls, or exit.
+    /// Called on the owning UI thread with show, presenter, story, meet, profile,
+    /// focus, breathing, screen-break, water-break, stretch-break, controls, or exit.
     /// </param>
     public TrayIcon(Action<string> command)
     {
@@ -116,6 +118,16 @@ public sealed class TrayIcon : IDisposable
         VerifyThread();
         ObjectDisposedException.ThrowIf(_disposed, this);
         _focusActive = active;
+    }
+
+    /// <summary>Sets the applied companion name displayed the next time the menu opens.</summary>
+    public void SetCompanionName(string name)
+    {
+        VerifyThread();
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException("A companion name is required.", nameof(name));
+        _companionName = name.Trim();
     }
 
     public void Dispose()
@@ -294,9 +306,12 @@ public sealed class TrayIcon : IDisposable
         try
         {
             AppendMenu(1, "Show companion");
+            AppendMenu(10, "Open presenter");
+            AppendMenu(11, "Session story");
+            AppendMenu(12, $"Meet {_companionName.Replace("&", "&&")}");
+            AppendMenu(6, "Profile && preferences");
             AppendMenu(2, _focusActive ? "End focus" : "Start focus");
             AppendMenu(3, "Guided breathing · 1 min");
-            AppendMenu(6, "Meet your companion / Profile & preferences");
             AppendMenu(7, "Screen break · 5 min");
             AppendMenu(8, "Water break · 1 min");
             AppendMenu(9, "Gentle movement · 2 min");
@@ -353,6 +368,9 @@ public sealed class TrayIcon : IDisposable
             7 => "screen-break",
             8 => "water-break",
             9 => "stretch-break",
+            10 => "presenter",
+            11 => "story",
+            12 => "meet",
             _ => null
         };
         if (command is not null)

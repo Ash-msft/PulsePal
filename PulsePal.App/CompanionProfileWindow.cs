@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
@@ -53,6 +54,7 @@ public sealed class CompanionProfileWindow : Window
     };
     private readonly TextBlock _status = Body("Make yourself at home. Changes stay in preview until you apply them.");
     private readonly TextBlock _storageStatus = Body();
+    private readonly Button _meetButton = new() { MinHeight = 40 };
     private CompanionProfileId _selectedProfile;
 
     public bool IsClosed { get; private set; }
@@ -60,7 +62,7 @@ public sealed class CompanionProfileWindow : Window
     public CompanionProfileWindow(AppController controller)
     {
         _controller = controller ?? throw new ArgumentNullException(nameof(controller));
-        Title = "Your companion";
+        Title = "Profile & preferences";
 
         var preferences = controller.Engine.Preferences;
         _selectedProfile = CompanionProfiles.Get(preferences.CompanionProfile).Id;
@@ -81,6 +83,18 @@ public sealed class CompanionProfileWindow : Window
             Foreground = Brush(0xF0F7FF), TextWrapping = TextWrapping.Wrap
         });
         page.Children.Add(Body("A familiar face. A little encouragement. Find the companion and daily rhythm that feel like you."));
+        _meetButton.Command = new RelayCommand(_controller.MeetCompanion);
+        UpdateMeetLabel();
+        page.Children.Add(Card(new StackPanel
+        {
+            Spacing = 10,
+            Children =
+            {
+                Heading("Your current companion"),
+                Body("Replay your current companion's introduction. Preview choices below won't change who you meet until you apply them."),
+                _meetButton
+            }
+        }));
 
         foreach (var profile in CompanionProfiles.All)
         {
@@ -223,7 +237,8 @@ public sealed class CompanionProfileWindow : Window
         UpdatePreview();
         UpdateBreakDescription();
         UpdateStorageStatus();
-        // Only storage status is observed: engine ticks must never replace an unsaved draft.
+        // Observe applied identity and storage only; engine ticks must never replace an unsaved draft.
+        _controller.Updated += OnUpdated;
         _controller.PropertyChanged += OnControllerPropertyChanged;
         Closed += OnClosed;
     }
@@ -299,7 +314,20 @@ public sealed class CompanionProfileWindow : Window
         }
         _status.Text = $"{CompanionProfiles.Get(_selectedProfile).Name} is your companion. Preferences applied.";
         UpdateStorageStatus();
-        _controller.ShowCompanion();
+        UpdateMeetLabel();
+    }
+
+    private void UpdateMeetLabel()
+    {
+        var label = $"Meet {CompanionProfiles.Get(_controller.Engine.Preferences.CompanionProfile).Name}";
+        _meetButton.Content = label;
+        AutomationProperties.SetName(_meetButton, label);
+    }
+
+    private void OnUpdated()
+    {
+        if (!IsClosed)
+            UpdateMeetLabel();
     }
 
     private void OnControllerPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -313,6 +341,7 @@ public sealed class CompanionProfileWindow : Window
     private void OnClosed(object sender, WindowEventArgs args)
     {
         IsClosed = true;
+        _controller.Updated -= OnUpdated;
         _controller.PropertyChanged -= OnControllerPropertyChanged;
         Closed -= OnClosed;
     }

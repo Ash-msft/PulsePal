@@ -8,12 +8,12 @@ using PulsePal.Infrastructure;
 
 namespace PulsePal.App;
 
-public sealed class AppController : ObservableObject, IDisposable
+public sealed partial class AppController : ObservableObject, IDisposable
 {
     private readonly JsonStateStore _store;
     private readonly DispatcherQueueTimer _uiTimer;
     private readonly SemaphoreSlim _saveGate = new(1, 1);
-    private readonly RecoverySession _recovery = new();
+    private readonly RecoverySession _recovery;
     private readonly Stopwatch _visibleTime = new();
     private readonly Stopwatch _checkpointTime = Stopwatch.StartNew();
     private readonly List<string> _activity = [];
@@ -47,6 +47,8 @@ public sealed class AppController : ObservableObject, IDisposable
     {
         Engine = engine;
         _store = store;
+        _recovery = new RecoverySession(engine.Clock);
+        Tour = new GuidedTour(engine.Clock);
         _uiTimer = dispatcher.CreateTimer();
         _uiTimer.Interval = TimeSpan.FromMilliseconds(50);
         _uiTimer.Tick += OnUiTick;
@@ -79,6 +81,8 @@ public sealed class AppController : ObservableObject, IDisposable
         var snapshot = await Engine.TickAsync(DateTimeOffset.Now);
         AcceptSnapshot(snapshot, false);
         _window.ApplyPreferences(Engine.Preferences);
+        _selectedPresentationBreak = Engine.Preferences.PreferredBreak;
+        _tray?.SetCompanionName(CompanionProfiles.Get(Engine.Preferences.CompanionProfile).Name);
         _window.SetCharacter(_character);
         ShowMessage(Engine.MorningBriefing(), true);
         _uiTimer.Start();
@@ -95,6 +99,9 @@ public sealed class AppController : ObservableObject, IDisposable
             case "water-break": StartRecovery(RecoveryActivity.WaterBreak); break;
             case "stretch-break": StartRecovery(RecoveryActivity.StretchBreak); break;
             case "profile": ShowProfile(); break;
+            case "presenter": ShowPresenter(); break;
+            case "story": ShowSessionStory(); break;
+            case "meet": MeetCompanion(); break;
             case "controls": ShowControls(); break;
             case "exit": RequestExit(); break;
         }
@@ -102,7 +109,7 @@ public sealed class AppController : ObservableObject, IDisposable
 
     public void AcceptSnapshot(DemoSnapshot snapshot, bool allowMessage = true)
     {
-        if (_exiting) return;
+        if (_exiting || !Engine.IsCurrent(snapshot) || IsPresentationPaused) return;
         try
         {
             _tray?.SetFocusActive(Engine.IsFocusActive);
@@ -121,7 +128,8 @@ public sealed class AppController : ObservableObject, IDisposable
             {
                 if (_skipNextFocusSummary && message.Category == "focus-summary")
                     _skipNextFocusSummary = false;
-                else if (!_recovery.IsActive && DateTimeOffset.Now >= _suppressedUntil)
+                else if (!_recovery.IsActive && SessionNow >= _suppressedUntil &&
+                    (!Tour.IsActive || message.Category is "peak-stress" or "notification"))
                     ShowMessage(message);
                 else if (message.Category == "notification")
                     _window?.SetBanner(message.Title + " · " + message.Text);
@@ -157,7 +165,7 @@ public sealed class AppController : ObservableObject, IDisposable
 
     public void SetScenario(DemoScenario scenario) => Run("Change scenario", () =>
     {
-        if (ExplainRecoveryLock()) return;
+        if (ExplainPresentationLock() || ExplainRecoveryLock()) return;
         Engine.SetScenario(scenario);
         Log("Scenario → " + scenario);
         ShowMessage(new("Scenario ready", $"Synthetic {scenario} samples begin on the next tick.", CharacterState.Thinking, "demo"), true);
@@ -175,7 +183,7 @@ public sealed class AppController : ObservableObject, IDisposable
     private string EndFocusForFeedback()
     {
         var released = Engine.PendingNotifications.ToArray();
-        var summary = Engine.EndFocus(DateTimeOffset.Now);
+        var summary = Engine.EndFocus(SessionNow);
         foreach (var item in released) Log("RELEASED · " + item.Kind + " · " + item.Title);
         if (summary is null) return string.Empty;
         _skipNextFocusSummary = true;
@@ -191,7 +199,7 @@ public sealed class AppController : ObservableObject, IDisposable
 
     public void ToggleFocus() => Run("Change focus session", () =>
     {
-        if (ExplainRecoveryLock()) return;
+        if (ExplainPresentationLock() || ExplainRecoveryLock()) return;
         if (Engine.IsFocusActive)
         {
             var text = EndFocusForFeedback();
@@ -199,7 +207,7 @@ public sealed class AppController : ObservableObject, IDisposable
         }
         else
         {
-            Engine.StartFocus(DateTimeOffset.Now);
+            Engine.StartFocus(SessionNow);
             Log("FOCUS STARTED · simulated Attention Shield on");
             var encouragement = CompanionProfiles.Get(Engine.Preferences.CompanionProfile).FocusEncouragement;
             ShowMessage(new("One thing at a time.", encouragement + " Your focus session is running. Low-priority demo notifications wait; urgent demo notifications still get through.", CharacterState.Focused, "focus"), true);
@@ -211,7 +219,13 @@ public sealed class AppController : ObservableObject, IDisposable
 
     public void SimulateNotification(NotificationKind kind) => Run("Simulate notification", () =>
     {
-        var decision = Engine.SimulateNotification(kind, DateTimeOffset.Now);
+        if (ExplainPresentationLock()) return;
+        DeliverNotification(kind);
+    });
+
+    private void DeliverNotification(NotificationKind kind, string? title = null)
+    {
+        var decision = Engine.SimulateNotification(kind, SessionNow, title);
         Log($"{(decision.Allowed ? "ALLOWED" : "QUEUED")} · {kind} · {decision.Notification.Title} · {decision.Reason}");
         if (decision.Allowed)
         {
@@ -221,22 +235,37 @@ public sealed class AppController : ObservableObject, IDisposable
             else
                 ShowMessage(new("Demo notification allowed", decision.Notification.Title + "\n" + decision.Reason, CharacterState.Encouraging, "notification"), true);
         }
-    });
+        else if (Tour.IsActive)
+            ShowMessage(new("I'll hold that for later", decision.Notification.Title + " · " + decision.Reason +
+                " Only synthetic notifications are deferred; urgent requests still get through.", CharacterState.Focused, "tour"), true);
+    }
 
     public void StartBreathing() => StartRecovery(RecoveryActivity.Breathing);
 
     public void StartRecovery(RecoveryActivity activity) => Run("Start recovery", () =>
     {
-        if (ExplainRecoveryLock()) return;
+        if (IsPresentationPaused || ExplainRecoveryLock()) return;
+        if (Tour.IsActive && Tour.Step != TourStep.Recovery)
+        {
+            _window?.SetBanner("The guide will offer recovery after the sustained peak. Stop the guide first if you want an unscripted break now.");
+            return;
+        }
         var option = RecoveryActivities.Get(activity);
+        _recoveryBefore = Engine.Current;
+        LastComparison = null;
         var focusFeedback = Engine.IsFocusActive ? "Focus ended for your break. " + EndFocusForFeedback() : string.Empty;
-        _recovery.Start(activity);
+        var accelerated = AcceleratedDemo && Engine.SupportsPresentation;
+        _recovery.Start(activity, accelerated);
+        if (Tour.Step == TourStep.Recovery) _tourRecoveryAttempted = true;
         Engine.SetRecoveryActive(true);
         ClearPeakPrompt();
         _character = CharacterState.Resting;
-        _window?.BeginRecovery(activity, focusFeedback);
-        Log($"RECOVERY STARTED · {activity} · {option.Duration.TotalSeconds:0} seconds");
-        LastMessage = option.Title + " · " + option.Instructions + (focusFeedback.Length > 0 ? " · " + focusFeedback : string.Empty);
+        _window?.BeginRecovery(activity, focusFeedback, accelerated);
+        Log($"RECOVERY STARTED · {activity} · {_recovery.ActualDuration.TotalSeconds:0} actual seconds · {option.Duration.TotalSeconds:0} represented seconds");
+        LastMessage = (accelerated ? "Accelerated demo · " : "") + option.Title + " · " +
+            (accelerated ? "15 actual seconds; illustration, not real breathing instruction or a health outcome." : option.Instructions) +
+            (focusFeedback.Length > 0 ? " · " + focusFeedback : string.Empty);
+        RefreshPresentationLabel();
         ShowCompanion();
         _ = PersistAsync();
     });
@@ -250,9 +279,7 @@ public sealed class AppController : ObservableObject, IDisposable
     {
         if (!_recovery.IsActive) return;
         var activity = ActiveRecovery;
-        _recovery.Cancel();
-        Engine.SetRecoveryActive(false);
-        _window?.EndRecovery();
+        CancelRecoveryCore();
         Log($"RECOVERY CANCELLED · {activity} · no completion benefit applied");
         ShowMessage(new("At your own pace.", "Break cancelled. No recovery benefit was applied. You can try again whenever you like.", CharacterState.Encouraging, "recovery-cancel"), true);
     });
@@ -271,24 +298,16 @@ public sealed class AppController : ObservableObject, IDisposable
 
     private void OnUiTick(DispatcherQueueTimer sender, object args)
     {
-        if (_exiting) return;
+        if (_exiting || IsPresentationPaused) return;
         try
         {
             if (_recovery.IsActive)
             {
                 if (_recovery.TryComplete() is { } completed)
                 {
-                    Engine.SetRecoveryActive(false);
-                    _window?.EndRecovery();
-                    Engine.CompleteRecovery(completed, DateTimeOffset.Now);
-                    Log("RECOVERY COMPLETE · " + completed);
-                    var option = RecoveryActivities.Get(completed);
-                    var encouragement = CompanionProfiles.Get(Engine.Preferences.CompanionProfile).RecoveryEncouragement;
-                    ShowMessage(new("A softer landing.", option.CompletionText + " " + encouragement + " Recovery changes in this demo are synthetic.", CharacterState.Happy, "recovery-complete"), true);
-                    _ = PersistAsync();
-                    Updated?.Invoke();
+                    CompleteRecoveryFeedback(completed);
                 }
-                else if (IsBreathing)
+                else if (IsBreathing && !_recovery.IsAccelerated)
                 {
                     var seconds = _recovery.Elapsed.TotalSeconds;
                     var phase = seconds % 12;
@@ -302,6 +321,8 @@ public sealed class AppController : ObservableObject, IDisposable
                     _window?.UpdateRecovery(RecoveryRemaining, _recovery.Progress);
                 }
             }
+            AdvancePresentation(false);
+            TryDeferredIntroduction();
             if (!_recovery.IsActive && !_peakPromptActive && _visibleTime.IsRunning &&
                 _visibleTime.Elapsed.TotalSeconds >= Engine.Preferences.PopupSeconds &&
                 _tray?.IsRegistered == true && _storageHealthy && _window?.HasError != true)
@@ -312,9 +333,7 @@ public sealed class AppController : ObservableObject, IDisposable
         }
         catch (Exception exception)
         {
-            _recovery.Cancel();
-            Engine.SetRecoveryActive(false);
-            _window?.EndRecovery();
+            CancelRecoveryCore();
             ReportError("Companion animation failed", exception);
         }
     }
@@ -343,8 +362,9 @@ public sealed class AppController : ObservableObject, IDisposable
     private void Suppress(TimeSpan duration)
     {
         ClearPeakPrompt();
-        Engine.Snooze(duration, DateTimeOffset.Now);
-        _suppressedUntil = DateTimeOffset.Now + duration;
+        Engine.Snooze(duration, SessionNow);
+        _suppressedUntil = SessionNow + duration;
+        if (Tour.IsActive) PausePresentation();
         Log("Companion snoozed for " + duration.TotalMinutes + " minutes");
         _visibleTime.Reset();
         if (_tray?.IsRegistered == true) _window?.HidePopup();
@@ -353,19 +373,23 @@ public sealed class AppController : ObservableObject, IDisposable
 
     public void SavePreferences(UserPreferences preferences) => Run("Save preferences", () =>
     {
+        var previousProfile = Engine.Preferences.CompanionProfile;
         Engine.Preferences = preferences with
         {
             DisplayName = string.IsNullOrWhiteSpace(preferences.DisplayName) ? "Ashwani" : preferences.DisplayName.Trim(),
             PopupSeconds = Math.Clamp(preferences.PopupSeconds, 5, 120)
         };
         _window?.ApplyPreferences(Engine.Preferences);
+        _tray?.SetCompanionName(CompanionProfiles.Get(Engine.Preferences.CompanionProfile).Name);
+        if (!Tour.IsActive) SelectedPresentationBreak = Engine.Preferences.PreferredBreak;
+        if (previousProfile != Engine.Preferences.CompanionProfile) RequestIntroduction(false);
         Log("Preferences updated");
         _ = PersistAsync();
     });
 
     private void ShowMessage(CompanionMessage message, bool force = false)
     {
-        if (!force && DateTimeOffset.Now < _suppressedUntil) return;
+        if (!force && (SessionNow < _suppressedUntil || IsPresentationPaused)) return;
         LastMessage = message.Title + " · " + message.Text;
         if (_recovery.IsActive)
         {
@@ -420,7 +444,10 @@ public sealed class AppController : ObservableObject, IDisposable
         await _saveGate.WaitAsync();
         try
         {
-            await _store.SaveAsync(Engine.ExportState(DateTimeOffset.Now, _character));
+            var state = _ordinaryStateBeforePresentation is { } ordinary && Engine.Clock.IsPresentation
+                ? ordinary with { Preferences = Engine.Preferences, LastSaved = DateTimeOffset.Now }
+                : Engine.ExportState(DateTimeOffset.Now, _character);
+            await _store.SaveAsync(state);
             _storageHealthy = true;
             Status = "Saved " + DateTimeOffset.Now.ToString("t") + " · " + _store.FilePath;
             Updated?.Invoke();
@@ -439,14 +466,13 @@ public sealed class AppController : ObservableObject, IDisposable
         if (_exiting) return;
         _exiting = true;
         _uiTimer.Stop();
-        _recovery.Cancel();
-        Engine.SetRecoveryActive(false);
+        CancelRecoveryCore();
         ExitRequested?.Invoke();
     }
 
     public async Task ShutdownAsync()
     {
-        if (Engine.IsFocusActive) Engine.EndFocus(DateTimeOffset.Now);
+        if (Engine.IsFocusActive) Engine.EndFocus(SessionNow);
         await PersistAsync(true);
     }
 
@@ -541,6 +567,8 @@ public sealed class AppController : ObservableObject, IDisposable
                 checks["TrayReopensSameCountdown"] = window.IsPopupVisible && ActiveRecovery == RecoveryActivity.ScreenBreak &&
                     RecoveryRemaining < beforeHide && window.DisplayedBanner.Contains("Urgent demo notification allowed");
                 window.ViewModel.CancelRecoveryCommand.Execute(null);
+                // This is a new UI prompt probe, not a stale sample from before the recovery boundary.
+                peak = peak with { Generation = Engine.Generation };
                 AcceptSnapshot(peak);
                 window.ViewModel.RemindLaterCommand.Execute(null);
                 await Task.Delay(250);
@@ -659,6 +687,7 @@ public sealed class AppController : ObservableObject, IDisposable
         _tray?.Dispose();
         if (_controls is { IsClosed: false }) _controls.Close();
         if (_profile is { IsClosed: false }) _profile.Close();
+        if (_presenter is { IsClosed: false }) _presenter.Close();
         _window?.CloseForExit();
     }
 }

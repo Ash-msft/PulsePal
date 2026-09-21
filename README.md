@@ -22,9 +22,29 @@ Alternatively open `PP_code.slnx` (or `PulsePal.sln`) in Visual Studio, select *
 
 For the already-published presentation build, run `.\artifacts\PulsePal\PulsePal.App.exe --demo-controls`. This opens the companion and developer controls without rebuilding or downloading anything.
 
-The cyan tray icon may be inside Windows' hidden-icons overflow. Click it to show the companion; right-click for focus, breathing, developer controls and Exit. Closing the companion or developer controls leaves the tray app running. Use **Exit** to shut down and save state.
+The cyan tray icon may be inside Windows' hidden-icons overflow. Click it to show the companion; its menu offers **A day with PulsePal…**, **Comparison & Session story** and **Meet <companion>**. Right-click the tray for presentation, focus, recovery, profile and developer controls, and Exit. Closing a window leaves the tray app running. Use **Exit** to shut down and save state.
 
-## Demo walkthrough
+## Seven demo-presentation features
+
+1. **Accessible guided presenter.** Open **A day with PulsePal…** from the companion menu (also available from the tray). Opening it does not start a tour. Named controls, keyboard-accessible actions, headings and polite status announcements support presentation access. **Start…** asks for confirmation before resetting the current simulated session, then automatically runs seven steps: Briefing → Focus → Interruptions → Meeting stress → Recovery → Comparison → Summary. Briefing, Focus and Comparison each default to 8 seconds; Interruptions takes 12 seconds. Meeting stress waits at least 8 seconds and then as long as needed for the actual correlated synthetic peak (at least 90/100 for 10 seconds). **Next** can shorten ordinary narrative steps, but cannot invent a peak, skip unresolved recovery or finish a running break. **Pause/Resume** freezes/resumes scenario sampling, tour time, focus accounting and the recovery clock during the tour. The guide owns focus/scenario controls while active. **Stop** cancels unfinished recovery without benefit, ends focus and restores ordinary timing; the Session story remains available.
+2. **Opt-in accelerated recovery.** **Accelerated demo** defaults off and is never persisted. Every activity previews for **15 actual seconds**, representing its catalog duration: breathing 60 seconds, screen break 300 seconds, water 60 seconds or movement 120 seconds. Accelerated breathing is a **non-guided illustration**, not sped-up breathing instruction. With acceleration off, normal full-duration recovery applies. At the Recovery step, an 8-second selection window precedes automatic start using the saved preferred break unless another is chosen; **Start selected recovery** starts it sooner. A session-only choice does not overwrite preferences. Acceleration and choice cannot change while paused or during a break; acceleration does not speed up stress readiness.
+3. **Snapshot-based comparison.** **Comparison & Session story** shows pre-break and completion snapshots: analysis stress score, wearable recovery score and heart rate (bpm), with actual after-minus-before deltas. Missing/non-finite values and their deltas are marked unavailable; unchanged or worsening values are not rewritten as improvements. Cancellation creates no success comparison or completion benefit. Synthetic changes are not evidence of a health outcome or proof of a break's effect.
+4. **Session story and totals.** The in-memory ledger reports actual focus time (including an active session), completed focus sessions, deferred and urgent-allowed synthetic notifications during focus, and completed/cancelled breaks. Completed breaks retain individual comparisons and totals grouped by activity and real-time/accelerated mode. Actual elapsed and represented catalog duration are distinct; guided paused time is excluded. These are session-only counts, not calendar-day totals, saved long-term analytics or measured productivity gains.
+5. **Companion introductions.** Applying a different profile introduces that companion; **Meet <companion>** replays the introduction. Automatic introductions defer during recovery, an active peak prompt, a paused tour or snooze. Explicit Meet uses a noninterrupting banner during recovery/peak/pause, preserving the current prompt/timer; as a user-requested action it can replay during snooze.
+6. **Scripted, exactly-once interruptions.** The guide delivers an FYI and group chat for deferral, followed by a manager approval, meeting reminder and customer escalation allowed through focus. Manual advancement delivers remaining events from the departing step without duplicating them. Only demo notifications are involved; recovery ends focus and releases the queue.
+7. **Repeatable fresh-session reset.** **Reset…** also confirms first. Start/Reset reset the seeded synthetic runtime, trend/sleep burden, history, cooldown/snooze, notification queues, focus, timers, peak state, comparisons, event-delivery tracking and session counters while preserving saved preferences and companion identity. Reset returns to idle ordinary mode with acceleration off; use Start to run again. This does not reset replay/live data: guided reset and acceleration require the synthetic provider.
+
+### Recommended live presentation
+
+1. Show the synthetic-data disclaimer, choose a profile/preferred break, and use **Meet**.
+2. Open **A day with PulsePal…**. Optionally enable **Accelerated demo** for a short presentation; leave it off for real-duration recovery. Click **Start…** and confirm the fresh-session reset.
+3. Let focus and interruptions run automatically. Pause to explain deferred versus urgent items, then Resume. Allow correlated stress to establish the peak; Next cannot force it.
+4. At Recovery, choose an alternative within 8 seconds or let the saved default start. Let the timer finish; an accelerated screen break represents five minutes but takes only 15 unpaused seconds.
+5. Read the actual comparison and Session story, distinguishing elapsed from represented time. Use **Stop** for ordinary mode or confirmed **Reset…** for a clean repeat. Close with the privacy/health limitations below.
+
+## Manual demo walkthrough
+
+Stop the guide before using ordinary scenario/focus controls.
 
 1. Launch for the personalized morning briefing. Open the tray menu's developer controls to see the synthetic metrics and explainable decisions.
 2. Start a focus session. Simulate a low-priority email: it queues without interruption. Simulate an escalation: it is allowed through. End focus to see actual duration, delayed-item count and urgent-item count, with released items in notification history.
@@ -61,9 +81,20 @@ Simulation uses bounded correlated trends rather than independent random values.
 
 All character art is original, with a cyan holographic technology aesthetic. The portrait is isolated in the app's UI controls for replacement; normal, focused, happy, encouraging, concerned, thinking, celebrating and resting states remain separate from the wellness model.
 
+### Presentation source map and programmatic APIs
+
+- `PulsePal.App\AppController.Presentation.cs`: `ShowPresenter`, `StartPresentation`, `PausePresentation`, `ResumePresentation`, `NextPresentation`, `ResetPresentation`, `StopPresentation`, `StartSelectedPresentationRecovery`, `ShowSessionStory` and `MeetCompanion`; exposes `Tour`, `AcceleratedDemo`, `SelectedPresentationBreak`, `SessionStory` and `LastComparison`. UI Start/Reset commands confirm first; direct lifecycle APIs do not display confirmation.
+- `PulsePal.App\PresenterWindow.cs` and `ViewModels\PresenterViewModel.cs`: accessible controls, confirmation dialogs, recovery selection, comparison and session-story bindings.
+- `PulsePal.Core\GuidedTour.cs` and `GuidedEvents.cs`: gated seven-step progression and exactly-once synthetic notification script.
+- `PulsePal.Core\SessionClock.cs`, `SessionLedger.cs` and `RecoveryComparison.cs`: pause-aware monotonic time, in-memory accounting and nullable snapshot deltas. `RecoverySession.cs` separates actual and represented duration.
+- `PulsePal.Infrastructure\DemoEngine.cs`: synthetic-only presentation lifecycle, `Clock`, `Ledger`, `SupportsPresentation` and `PeakStressEstablished`; `SyntheticWearableProvider.Reset` resets synthetic runtime state.
+- `PulsePal.App\App.xaml.cs` and `AppController.PresentationSmoke.cs`: isolated smoke startup/options and the two-cycle presentation exercise.
+
 ## Local data and privacy
 
 State is saved to `%LOCALAPPDATA%\PulsePal\state.json` using `System.Text.Json`: preferences, scenario, companion state and bounded demo history. Writes use same-directory atomic replacement. Invalid data produces a visible error rather than silent success; malformed existing files are backed up before replacement. Data is local plain-text JSON, not encrypted. Shut down the app before deleting the directory to reset local data.
+
+The presentation ledger, comparisons and acceleration setting are not persisted. While the guided clock is active, saves preserve the pre-tour ordinary scenario/history with current preferences rather than saving the synthetic tour as ordinary history. Test-only path overrides below do not change the normal default state location.
 
 ## Tests and distribution
 
@@ -73,6 +104,25 @@ dotnet publish .\PulsePal.App\PulsePal.App.csproj -c Release -p:Platform=x64 -r 
 .\artifacts\PulsePal\PulsePal.App.exe
 ```
 
-Use `--demo-controls` to open the developer window at launch. `--smoke-test --smoke-test-full` runs a real UI exercise including all scenarios, profiles and expressions, persistent peak prompts, focus filtering, break cancellation/hiding, the full 60-second breathing cycle, snooze and auto-hide, then exits. It takes approximately two minutes and writes `%LOCALAPPDATA%\PulsePal\smoke-test.json`, `smoke-test.png`, and `profile-*.png`. Run it with other PulsePal instances closed; it uses local demo state and restores the original preferences and scenario afterward. The five-minute screen-break timing and exact-once completion for every activity are also covered by deterministic monotonic-clock unit tests.
+Use `--demo-controls` to open the developer window at launch. Run either desktop exercise from the workspace root:
+
+```powershell
+.\artifacts\PulsePal\PulsePal.App.exe --smoke-test-presentation
+.\artifacts\PulsePal\PulsePal.App.exe --smoke-test --smoke-test-full
+```
+
+`--smoke-test-presentation` exercises two tour cycles, including real correlated peak waits, 15-second recovery previews, pause/resume, reset, comparison and ledger checks, then exits. Allow roughly three minutes; stress is not fast-forwarded. The legacy full UI exercise takes approximately two minutes, covers all scenarios, profiles/expressions, peak prompts, focus filtering, cancellation/hiding, full 60-second breathing, snooze and auto-hide, then exits. Deterministic monotonic-clock tests also cover five-minute screen breaks and exact-once activity completion.
+
+**All smoke modes (`--smoke-test-presentation`, `--smoke-test` and `--smoke-test-full`) now isolate state by default** in a new `artifacts\presentation-smoke-<guid>` directory under the current working directory, not ordinary LocalAppData state. Outputs include `state.json`, diagnostics, and `smoke-test-presentation.json` or `smoke-test.json`; legacy UI runs also produce `smoke-test.png` and full-run `profile-*.png` captures. Reports and process exit status indicate success/failure.
+
+Optional **test-only** overrides (choose a fresh state filename for each run):
+
+```powershell
+.\artifacts\PulsePal\PulsePal.App.exe --smoke-test-presentation --state-path .\artifacts\presentation-check-01\state.json --log-directory .\artifacts\presentation-check-01\logs
+```
+
+`--state-path` must name a new isolated file: smoke startup rejects an existing file or the ordinary state path. `--log-directory` redirects reports/logs and cannot be the ordinary user-state directory in smoke mode. Ordinary launches without overrides still use `%LOCALAPPDATA%\PulsePal\state.json`. Avoid interacting with other PulsePal windows during UI exercises; isolation means smoke runs no longer load or modify ordinary preferences/history.
+
+Validation reported for the current implementation: Debug/Release builds passed and 519 unit tests passed; agent reports recorded 87 presentation and 48 legacy UI checks. Independent main verification is in progress; these results were not rerun for this documentation-only update.
 
 Distribute the entire publish folder, not just the executable: WinUI resources and native runtime files must remain together. The build is intentionally untrimmed. No signing certificate or cloud deployment is required for this local demo.
