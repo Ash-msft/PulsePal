@@ -103,6 +103,7 @@ public sealed partial class AppController : ObservableObject, IDisposable
             case "story": ShowSessionStory(); break;
             case "meet": MeetCompanion(); break;
             case "controls": ShowControls(); break;
+            case "connected": ShowConnectedHealth(); break;
             case "exit": RequestExit(); break;
         }
     }
@@ -472,8 +473,12 @@ public sealed partial class AppController : ObservableObject, IDisposable
 
     public async Task ShutdownAsync()
     {
-        if (Engine.IsFocusActive) Engine.EndFocus(SessionNow);
-        await PersistAsync(true);
+        try { await CloseConnectedHealthAsync(); }
+        finally
+        {
+            if (Engine.IsFocusActive) Engine.EndFocus(SessionNow);
+            await PersistAsync(true);
+        }
     }
 
     public async Task RunSmokeTestAsync(bool full = false)

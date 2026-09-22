@@ -1,0 +1,133 @@
+PulsePal Phone Android - verification 2026-09-22
+
+Status
+Release and Debug APK builds PASSED using installed .NET SDK 10.0.401,
+Microsoft.Android 36.1.69, Android SDK 36 and OpenJDK 21.0.8.
+Release APK signature verified with installed apksigner (v3).
+No connected Android device: the single adb devices -l inquiry returned an
+empty list. No emulator was launched, no tools installed, no processes killed.
+Native instrumentation was BUILT, NOT RUN. Actual Health Connect query,
+permission UI, unauthorized denial, pinned LAN TLS, Samsung/wearable records
+and physical-device lifecycle behavior remain UNVERIFIED.
+iOS is separately documented in PulsePal.Phone.iOS\PlatformNotes.txt:
+Managed sources compiled on Windows; native AOT/link/sign/deploy still requires
+a Mac/Xcode and signed HealthKit-capable device.
+
+Commands (run from repository root)
+  dotnet build .\PulsePal.Phone.Android\PulsePal.Phone.Android.csproj -c Release --no-restore -v minimal
+  dotnet build .\PulsePal.Phone.Android\PulsePal.Phone.Android.csproj -c Debug --no-restore -v minimal
+  & 'C:\Program Files (x86)\Android\android-sdk\platform-tools\adb.exe' devices -l
+  $env:JAVA_HOME = 'C:\Program Files\Android\openjdk\jdk-21.0.8'
+  & 'C:\Program Files (x86)\Android\android-sdk\build-tools\36.0.0\apksigner.bat' verify --verbose '.\PulsePal.Phone.Android\bin\Release\net10.0-android\org.pulsepal.phone-Signed.apk'
+  & 'C:\Program Files (x86)\Android\android-sdk\build-tools\36.0.0\aapt2.exe' dump badging '.\PulsePal.Phone.Android\bin\Release\net10.0-android\org.pulsepal.phone-Signed.apk'
+  & 'C:\Program Files (x86)\Android\android-sdk\build-tools\36.0.0\aapt2.exe' dump xmltree '.\PulsePal.Phone.Android\bin\Release\net10.0-android\org.pulsepal.phone-Signed.apk' --file AndroidManifest.xml
+
+Exact Release artifact:
+C:\Users\ashwakumar\OneDrive - Microsoft\Documents\Hack\PulsePal\PP_code\PulsePal.Phone.Android\bin\Release\net10.0-android\org.pulsepal.phone-Signed.apk
+Size: 10497935 bytes
+SHA256: A6DF7265444977575D94A5A799E1678C5A072D0B86525CF9AF00156D6626C323
+Debug artifact: PulsePal.Phone.Android\bin\Debug\net10.0-android\org.pulsepal.phone-Signed.apk
+The default local Android debug keystore signs these developer artifacts;
+Release configuration is not a production/distribution signing claim.
+Packaged ABIs: arm64-v8a and x86_64. Min SDK 28; target SDK 36.
+
+Build troubleshooting encountered and resolved
+Visual Studio's build tool could not locate this project in its open solution;
+explicit dotnet project builds above succeeded without editing any solution.
+Android's linker requires explicit RootMode="All" on TrimmerRootAssembly.
+OneDrive marked generated Java class directories ReadOnly and packaging failed
+with XARDF7024. Clear ReadOnly only on the affected generated classes directory
+and its child directories, then repeat the normal build:
+  $classes = '.\PulsePal.Phone.Android\obj\Release\net10.0-android\android\bin\classes'
+  Get-ChildItem $classes -Force -Recurse -Directory | ForEach-Object { $_.Attributes = $_.Attributes -band (-bnot [System.IO.FileAttributes]::ReadOnly) }
+  $directory = Get-Item $classes -Force
+  $directory.Attributes = $directory.Attributes -band (-bnot [System.IO.FileAttributes]::ReadOnly)
+The same fix was needed for Debug. No permissions/ACLs or other processes changed.
+An attempted alternate IntermediateOutputPath failed because it propagated to
+the shared reference; its scratch directory was removed. Do not use that option.
+
+Native support and data
+This uses Android 14/API 34+ framework HealthConnectManager, NOT AndroidX's
+provider client. On Android 9-13 the app opens but health reads report Unsupported,
+even with the separately installed Health Connect provider. Native API 34 types
+are isolated behind runtime guards. No background services, workers or sync exist.
+Manifest requests INTERNET, READ_HEART_RATE and READ_BLOOD_PRESSURE only.
+Packaged manifest has no instrumentation or health write permissions in Release,
+disables backup and cleartext, and exposes the protected VIEW_PERMISSION_USAGE /
+HEALTH_PERMISSIONS rationale alias plus the older rationale action.
+
+Samsung Health must first export supported measurements into Health Connect with
+the user's permission; PulsePal does not access a Samsung wearable directly.
+Availability depends on source app, device, region and export support. No stress
+is measured, synthesized or inferred. No production/debug sample seeding exists.
+Only actual HeartRateRecord samples and native BloodPressureRecord values leave
+the adapter. BP's systolic/diastolic are from the same record and converted using
+InMillimetersOfMercury, never joined by time or fabricated.
+HR's MeasuredAt is the individual original sampletimestamp in UTC, NOT the parent
+session's start or upload time. ID is healthconnect:hr:<native ID>:<epoch sec>:<nanos>,
+preserving nanosecond identity; DateTimeOffset precision is 100 ns.
+BP ID is healthconnect:bp:<native ID>. Version uses native LastModifiedTime UTC
+ticks, stable when unchanged. SourceApp is native origin package and SourceDevice
+is available manufacturer/model. Shared desktop key remains SourceApp/Metric/RecordId.
+There are no shared public-interface changes or synthetic revisions.
+
+Reads are bounded snapshots: HR last 24 hours; BP last seven days, each at most
+128 results. Four pages of 64 native parent records are scanned per category.
+HR parent history spans 30 days to include crossing sessions; only in-window
+samples are emitted. This cap is not exhaustive history or deletion reconciliation.
+Newest HR samples within the bounded scan are retained regardless of parent order.
+First page is descending; subsequent page tokens carry their own sort direction.
+Bridge-invalid metadata, timestamps or values are skipped per record. The shared
+0 < value <= 1000 limit is a wire validation rule, not a clinical assessment.
+No usable records reports NoData, not zero. Denied permissions never start a
+category query. Permissions are checked after reads and again before upload;
+revoked categories are removed. Query failures are displayed independently and
+omitted from upload, not mislabeled denied/no-data; successful categories can sync.
+There is an unavoidable check/send race if the OS permission changes during upload;
+already-delivered data cannot be recalled by local cancellation.
+
+User flow, lifecycle and memory
+Select categories, grant read permissions, paste fresh desktop pairing JSON in the
+text field, Pair, compare the entire request GUID and expiry with the desktop,
+approve there, Check desktop approval, then Sync now. No automatic polling/upload.
+Pairing uses the real shared PinnedBridgeClient / SocketsHttpHandler and its
+mandatory pin, hostname/expiry validation and no-redirect/no-proxy policy.
+Managed HTTP is configured; no Android native callback fallback is substituted.
+Reflection JSON is explicitly enabled and the shared assembly rooted for linking.
+Successful compilation/signature checking does NOT validate TLS/JSON on-device.
+
+Leaving the main activity (OnPause), including permission/policy screens, cancels
+work and disposes local pairing. It clears pasted text, pending GUID, results and
+category selection. During a permission prompt only category choices survive so
+the response can be inspected; credentials never survive. Pair again on return.
+Late callbacks check cancellation; a generation guard prevents stale status text.
+Disconnect clears local credentials/results regardless of remote reachability;
+only confirmed DELETE establishes desktop revocation/clearing. Background exit
+never sends DELETE: revoke old sessions on the desktop. Screen capture is blocked.
+No preferences, logs or disk cache store credentials/measurements. Record staging
+and upload array references are cleared after use/failure. This is logical cleanup,
+NOT secure erasure of immutable strings, runtime/network/native buffers, clipboard,
+native health-store contents or records already delivered to the desktop.
+
+Device acceptance still required
+1. Install Debug on an authorized test device with Android 14+ Health Connect.
+   With both read permissions revoked, run the debug-only read instrumentation:
+   adb shell am instrument -w -e expected Denied org.pulsepal.phone/org.pulsepal.phone.NativeReadInstrumentation
+2. Have real HR and paired BP records in Health Connect from approved source apps.
+   Grant both read permissions via the system screen; run:
+   adb shell am instrument -w -e expected Available org.pulsepal.phone/org.pulsepal.phone.NativeReadInstrumentation
+   Optional -e requestPermissions true opens the real permission prompt and waits
+   at most 60 seconds for manual approval. There is no permission bypass or seeding.
+   Instrumentation checks both metrics, bounds, wire validity and unchanged
+   overlapping records on repeated reads; zero overlap cannot prove stable reads.
+   Compare native store originals to uploaded source/ID/time/value/revision on a
+   physical device. Instrumentation alone does not prove source equivalence or
+   wearable/device provenance. It prints no health values, IDs or source metadata.
+3. Test per-category denial, empty store, permission revocation, changed source
+   records, network failure and malformed/expired/tampered pairing identities.
+4. Background during pairing/approval/query/upload; return before callbacks finish.
+   Verify no old credentials/results or automatic retry returns. Disconnect offline
+   must warn that desktop revocation is unconfirmed. Test repeated sync idempotency.
+NativeReadInstrumentation.cs is guarded by #if DEBUG and removed from compilation
+for every non-Debug configuration. It is not a launcher/default data path.
+No existing native unit-test runner or linter is configured in these two projects.

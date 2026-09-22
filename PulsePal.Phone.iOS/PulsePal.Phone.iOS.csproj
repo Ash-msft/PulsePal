@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-ios</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>PulsePal.Phone.iOS</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <SupportedOSPlatformVersion>16.0</SupportedOSPlatformVersion>
+    <RuntimeIdentifier>ios-arm64</RuntimeIdentifier>
+    <ApplicationId>com.pulsepal.phone</ApplicationId>
+    <ApplicationTitle>PulsePal Phone</ApplicationTitle>
+    <ApplicationVersion>1</ApplicationVersion>
+    <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+    <CodesignEntitlements>Entitlements.plist</CodesignEntitlements>
+    <UseNativeHttpHandler>false</UseNativeHttpHandler>
+    <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\PulsePal.Connected\PulsePal.Connected.csproj" />
+    <TrimmerRootAssembly Include="PulsePal.Connected" RootMode="All" />
+  </ItemGroup>
+</Project>

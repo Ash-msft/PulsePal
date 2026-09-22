@@ -25,6 +25,8 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.12" />
     <ProjectReference Include="..\PulsePal.Core\PulsePal.Core.csproj" />
     <ProjectReference Include="..\PulsePal.Infrastructure\PulsePal.Infrastructure.csproj" />
+    <ProjectReference Include="..\PulsePal.Bridge\PulsePal.Bridge.csproj" />
+    <ProjectReference Include="..\PulsePal.Connected\PulsePal.Connected.csproj" />
   </ItemGroup>
   <Target Name="IncludeUnpackagedXamlResources" BeforeTargets="ComputeFilesToPublish">
     <ItemGroup>

@@ -1,0 +1,34 @@
+@endpoint = https://127.0.0.1:PORT
+@challenge = REPLACE_FROM_DESKTOP_PAIRING
+@pollSecret = REPLACE_FROM_PAIRING_RESPONSE
+@requestId = REPLACE_FROM_PAIRING_RESPONSE
+@token = REPLACE_FROM_APPROVED_STATUS
+
+### A trusted client must verify the desktop certificate pin before sending any secret.
+POST {{endpoint}}/v1/pairing
+Content-Type: application/json
+
+{"challenge":"{{challenge}}","deviceName":"Example phone"}
+
+### Desktop approval is in-process only. Token is returned once.
+POST {{endpoint}}/v1/pairing/status
+Content-Type: application/json
+
+{"requestId":"{{requestId}}","pollSecret":"{{pollSecret}}"}
+
+### Synchronize only selected categories; no data does not mean zero.
+POST {{endpoint}}/v1/records
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"records":[],"categories":[{"metric":"HeartRate","availability":"NoData"}]}
+
+### Disconnect and erase in-memory session state.
+DELETE {{endpoint}}/v1/session
+Authorization: Bearer {{token}}
+
+### Unauthorized ingestion returns a safe problem before binding the body.
+POST {{endpoint}}/v1/records
+Content-Type: application/json
+
+{}

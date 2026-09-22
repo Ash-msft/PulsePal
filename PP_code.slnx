@@ -7,6 +7,8 @@
   <Project Path="PulsePal.App/PulsePal.App.csproj">
     <Platform Project="x64" />
   </Project>
+  <Project Path="PulsePal.Bridge/PulsePal.Bridge.csproj" />
+  <Project Path="PulsePal.Connected/PulsePal.Connected.csproj" />
   <Project Path="PulsePal.Core/PulsePal.Core.csproj" />
   <Project Path="PulsePal.Infrastructure/PulsePal.Infrastructure.csproj" />
   <Project Path="PulsePal.Tests/PulsePal.Tests.csproj" />

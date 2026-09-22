@@ -8,9 +8,22 @@ An offline Windows tray companion demo built with C#, .NET 10, WinUI 3, Windows 
 >
 > All wellness information shown in demo mode is synthetic.
 
+## Phone-health prototype (feature branch)
+
+`feature/phone-health-sync` adds an **opt-in, separate connected-health window** and native Android/iPhone companion projects. The offline demo remains synthetic; phone readings never enter its stress, fatigue, focus or burnout rules.
+
+- **Android 14+ and Samsung phones running Android 14+:** read heart-rate and blood-pressure records from built-in **Health Connect**, after category-specific read permission. Samsung Health or another source must actually write the measurements to Health Connect. Android 9-13 reports unsupported in this first implementation.
+- **iPhone:** a native **HealthKit** companion reads heart rate and correlated blood-pressure measurements. Native deployment requires a Mac, compatible Xcode and HealthKit-enabled signing. Source/managed compilation is not proof of a working signed iPhone app.
+- **Stress:** unsupported, not estimated from heart rate. BP requires actual recorded measurements from a supported source; the phone app does not measure BP.
+- **Freshness:** manual foreground **Sync now**, not continuous wearable streaming. The desktop shows original timestamps, sources, receipt times and older-record labels. Phone/wearable synchronization determines what is available.
+
+Open **Connected health** from the tray or companion menu. Opening the window starts no listener. Select a trusted private IPv4 interface and explicitly start it, transfer the short-lived pairing payload privately to the phone, compare the request IDs on both screens, and approve on Windows. HTTPS uses the exact certificate pin carried by the pairing payload; no blanket certificate-trust bypass or cloud account is used. Pairing credentials and received records are session-only, not written into the demo's JSON history. Closing connected health stops its listener and clears its session.
+
+See **[ConnectedHealth.txt](ConnectedHealth.txt)** for build/install commands, pairing, platform limitations, privacy boundaries and the physical-device acceptance checklist. This is a development prototype, not a validated health-monitoring product. There is no claim of physical wearable/iPhone validation.
+
 ## Run locally
 
-Requires Windows 10 version 2004 or newer, x64, the .NET 10 SDK and Windows development build tools. Visual Studio with the WinUI application development components is recommended. The first restore downloads NuGet dependencies; the running application needs no network connection, credentials, Azure resources or wearable devices.
+Requires Windows 10 version 2004 or newer, x64, the .NET 10 SDK and Windows development build tools. Visual Studio with the WinUI application development components is recommended. The first restore downloads NuGet dependencies; the offline demo needs no network connection, credentials, Azure resources or wearable devices. Optional connected health requires a supported phone and a trusted local network.
 
 ```powershell
 dotnet restore .\PulsePal.sln
@@ -72,8 +85,12 @@ Set your display name, go-to break, hydration reminders and popup duration in th
 | `PulsePal.Core` | Nullable wearable contracts, work context, explainable wellness rules, notification decisions and cooldown policy |
 | `PulsePal.Infrastructure` | Correlated synthetic provider, replay provider, future adapter stubs, mock context, thread-safe demo orchestration and JSON persistence |
 | `PulsePal.Tests` | xUnit coverage for simulation, scoring, focus/stress/fatigue risk, notification filtering, cooldowns, recovery, replay and storage |
+| `PulsePal.Connected` | Shared real-record protocol, strict JSON, pairing policy and certificate-pinned foreground client |
+| `PulsePal.Bridge` | Opt-in HTTPS receiver, desktop-approved pairing, bounded in-memory records and revocation |
+| `PulsePal.Phone.Android` | Native Android app with read-only Android 14+ Health Connect access |
+| `PulsePal.Phone.iOS` | Native UIKit app with read-only HealthKit access; build/deploy separately |
 
-The default `DemoEngine` uses `SyntheticWearableProvider`. `IWearableProvider.GetSampleAsync` receives work context, a timestamp and cancellation. Inject another provider into `DemoEngine` to replace sample acquisition without rewriting the rule engine. `ReplayWearableProvider` supports reproducible recorded JSON sequences. Garmin and Oura adapters deliberately throw `NotSupportedException`: they do not imply an implemented live integration or require credentials.
+The default `DemoEngine` uses `SyntheticWearableProvider`. `IWearableProvider.GetSampleAsync` receives work context, a timestamp and cancellation. `ReplayWearableProvider` supports reproducible recorded JSON sequences. Provider injection replaces demo sample acquisition, but does not make the demo's accelerated rules appropriate for real health data. Connected health deliberately uses its own contracts and display instead. Garmin and Oura adapters deliberately throw `NotSupportedException`: they do not imply an implemented live integration or require credentials.
 
 Metrics include heart rate, resting heart rate, HRV, stress, steps, calories, activity, sleep stages, readiness, recovery, oxygen saturation, respiration, body battery and a synthetic focus estimate. Missing metrics are nullable. HRV is represented in milliseconds, heart rate in beats/minute, respiration in breaths/minute, sleep/activity in minutes, oxygen saturation in percent and normalized scores on a 0-100 scale. Different manufacturers have different proprietary definitions: this is a normalized demo schema, not a claim of API compatibility. FocusScore and burnout risk are PulsePal heuristics, not physiological measurements, diagnoses or standard wearable outputs.
 
@@ -96,6 +113,8 @@ State is saved to `%LOCALAPPDATA%\PulsePal\state.json` using `System.Text.Json`:
 
 The presentation ledger, comparisons and acceleration setting are not persisted. While the guided clock is active, saves preserve the pre-tour ordinary scenario/history with current preferences rather than saving the synthetic tour as ordinary history. Test-only path overrides below do not change the normal default state location.
 
+Connected records, phone tokens and pending pairing secrets are volatile and separate from this demo store. Revocation, stopping/closing the connected listener or exiting clears them. The application does not write connected request bodies or health readings to its logs. OS paging, crash dumps, clipboard software and a compromised device remain outside that guarantee; use only a trusted network and devices. Read [ConnectedHealth.txt](ConnectedHealth.txt) before sharing any real data.
+
 ## Tests and distribution
 
 ```powershell
@@ -109,11 +128,12 @@ Use `--demo-controls` to open the developer window at launch. Run either desktop
 ```powershell
 .\artifacts\PulsePal\PulsePal.App.exe --smoke-test-presentation
 .\artifacts\PulsePal\PulsePal.App.exe --smoke-test --smoke-test-full
+.\artifacts\PulsePal\PulsePal.App.exe --smoke-test-connected
 ```
 
 `--smoke-test-presentation` exercises two tour cycles, including real correlated peak waits, 15-second recovery previews, pause/resume, reset, comparison and ledger checks, then exits. Allow roughly three minutes; stress is not fast-forwarded. The legacy full UI exercise takes approximately two minutes, covers all scenarios, profiles/expressions, peak prompts, focus filtering, cancellation/hiding, full 60-second breathing, snooze and auto-hide, then exits. Deterministic monotonic-clock tests also cover five-minute screen breaks and exact-once activity completion.
 
-**All smoke modes (`--smoke-test-presentation`, `--smoke-test` and `--smoke-test-full`) now isolate state by default** in a new `artifacts\presentation-smoke-<guid>` directory under the current working directory, not ordinary LocalAppData state. Outputs include `state.json`, diagnostics, and `smoke-test-presentation.json` or `smoke-test.json`; legacy UI runs also produce `smoke-test.png` and full-run `profile-*.png` captures. Reports and process exit status indicate success/failure.
+**All smoke modes (including `--smoke-test-connected`) isolate state by default** in a new `artifacts\presentation-smoke-<guid>` directory under the current working directory, not ordinary LocalAppData state. Outputs include `state.json`, diagnostics, and the corresponding `smoke-test-presentation.json`, `smoke-test-connected.json` or `smoke-test.json`; legacy UI runs also produce `smoke-test.png` and full-run `profile-*.png` captures. Reports and process exit status indicate success/failure. Connected smoke exercises the opt-in window, loopback HTTPS authorization and listener cleanup; it does not validate a phone or wearable.
 
 Optional **test-only** overrides (choose a fresh state filename for each run):
 
@@ -123,6 +143,6 @@ Optional **test-only** overrides (choose a fresh state filename for each run):
 
 `--state-path` must name a new isolated file: smoke startup rejects an existing file or the ordinary state path. `--log-directory` redirects reports/logs and cannot be the ordinary user-state directory in smoke mode. Ordinary launches without overrides still use `%LOCALAPPDATA%\PulsePal\state.json`. Avoid interacting with other PulsePal windows during UI exercises; isolation means smoke runs no longer load or modify ordinary preferences/history.
 
-Validation reported for the current implementation: Debug/Release builds passed and 519 unit tests passed; agent reports recorded 87 presentation and 48 legacy UI checks. Independent main verification is in progress; these results were not rerun for this documentation-only update.
+The phone projects are intentionally outside the Windows solution build. Build them explicitly using the platform instructions in ConnectedHealth.txt. Automated bridge/client tests use test fixtures, not someone's health records; passing them does not demonstrate native permission flows or wearable-to-phone synchronization.
 
 Distribute the entire publish folder, not just the executable: WinUI resources and native runtime files must remain together. The build is intentionally untrimmed. No signing certificate or cloud deployment is required for this local demo.

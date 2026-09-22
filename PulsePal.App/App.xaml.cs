@@ -12,8 +12,9 @@ public partial class App : Application
     private IHost? _host;
     private AppController? _controller;
     private readonly string[] _arguments = Environment.GetCommandLineArgs();
+    private bool IsConnectedSmoke => _arguments.Contains("--smoke-test-connected", StringComparer.OrdinalIgnoreCase);
     private bool IsPresentationSmoke => _arguments.Contains("--smoke-test-presentation", StringComparer.OrdinalIgnoreCase);
-    private bool IsSmoke => IsPresentationSmoke || _arguments.Contains("--smoke-test", StringComparer.OrdinalIgnoreCase)
+    private bool IsSmoke => IsConnectedSmoke || IsPresentationSmoke || _arguments.Contains("--smoke-test", StringComparer.OrdinalIgnoreCase)
         || _arguments.Contains("--smoke-test-full", StringComparer.OrdinalIgnoreCase);
     private string? _smokeDirectory;
 
@@ -97,7 +98,9 @@ public partial class App : Application
             await _host.StartAsync();
             if (_arguments.Contains("--demo-controls", StringComparer.OrdinalIgnoreCase))
                 _controller.ShowControls();
-            if (IsPresentationSmoke)
+            if (IsConnectedSmoke)
+                await _controller.RunConnectedSmokeTestAsync();
+            else if (IsPresentationSmoke)
                 await _controller.RunPresentationSmokeTestAsync();
             else if (IsSmoke)
                 await _controller.RunSmokeTestAsync(_arguments.Contains("--smoke-test-full", StringComparer.OrdinalIgnoreCase));
@@ -130,7 +133,7 @@ public partial class App : Application
         {
             Directory.CreateDirectory(AppLog.DirectoryPath);
             File.WriteAllText(Path.Combine(AppLog.DirectoryPath,
-                IsPresentationSmoke ? "smoke-test-presentation.json" : "smoke-test.json"),
+                IsConnectedSmoke ? "smoke-test-connected.json" : IsPresentationSmoke ? "smoke-test-presentation.json" : "smoke-test.json"),
                 System.Text.Json.JsonSerializer.Serialize(new
                 {
                     UiInitialized = _controller?.HasWindow == true, Passed = false, PresentationTest = IsPresentationSmoke,

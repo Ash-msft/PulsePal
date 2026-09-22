@@ -1,0 +1,282 @@
+PULSEPAL - CONNECTED PHONE HEALTH PROTOTYPE
+Branch: feature/phone-health-sync
+Date: 22 September 2026
+
+STATUS AND BOUNDARIES
+
+This branch starts the real-data product without replacing the offline demo.
+The Windows connected-health window receives authorized native phone health
+records through a separate, opt-in HTTPS listener. It does not feed records into
+DemoEngine, simulate missing values, infer stress, diagnose disease or promise
+emergency monitoring. The existing avatar, attention shield and guided demo
+continue to operate on synthetic data only.
+
+PulsePal is not a medical device.
+Phone health records are not a continuous live sensor feed.
+
+IMPLEMENTED PATHS
+
+Android / Samsung:
+  A native .NET Android companion reads the Android 14+ platform Health Connect
+  store. Samsung is an Android path, not a separate OS integration. Samsung
+  Health must be configured to share supported records with Health Connect.
+  Availability depends on the health source, wearable, country and permissions.
+  The Samsung Health proprietary SDK is not integrated. The separate Health
+  Connect provider on Android 9-13 is not supported by this first adapter.
+
+iPhone:
+  A native .NET iOS / UIKit companion uses HealthKit read queries. An Apple Watch
+  or another source must already have written readable records into Apple Health.
+  Windows cannot directly read Apple Health. The iPhone app is required.
+  Managed compilation on Windows does not validate native AOT/linking, signing,
+  installation, HealthKit authorization or local-network behavior. Those require
+  a compatible Mac/Xcode setup and a signed physical-device deployment.
+
+Measurements:
+  Heart rate: beats per minute, original sample time and source.
+  Blood pressure: actual systolic and diastolic values in mmHg; HealthKit reads
+  correlated pairs rather than combining unrelated quantity samples.
+  Stress: Unsupported / not provided. No universal phone-health stress metric
+  is assumed and heart rate alone is not interpreted as stress.
+
+The app requests read permissions only for user-selected heart-rate and/or BP
+categories. Nothing is selected automatically. It does not request write access.
+Heart-rate queries cover a bounded recent 24-hour window; BP covers seven days.
+Batches contain at most 256 measurements. Platform adapters may apply smaller
+per-category limits. This is a recent snapshot, not a complete health archive.
+Native source permissions/history limits can further restrict the results.
+
+WINDOWS BUILD AND START
+
+From the repository root in PowerShell:
+
+  dotnet build .\PP_code.slnx -c Release -p:Platform=x64
+  dotnet test .\PulsePal.Tests\PulsePal.Tests.csproj -c Release
+  dotnet publish .\PulsePal.App\PulsePal.App.csproj -c Release -p:Platform=x64 -r win-x64 --self-contained true -o .\artifacts\PulsePalConnected
+  .\artifacts\PulsePalConnected\PulsePal.App.exe
+
+The separate publish folder avoids overwriting a running offline demo.
+Distribute the whole folder, including WinUI resources and the ASP.NET runtime.
+The Windows solution includes the shared protocol and receiver, not the mobile
+projects. Running a solution build does not compile or install either phone app.
+
+ANDROID BUILD AND INSTALL
+
+Use the .NET 10 Android workload, compatible Android SDK and JDK installed by
+Visual Studio. The phone must run Android 14 or later for actual health reads.
+The project can install on older supported Android versions, but reports the
+native health API as Unsupported there.
+
+  dotnet build .\PulsePal.Phone.Android\PulsePal.Phone.Android.csproj -c Release
+
+Install the generated signed APK in that project's bin\Release output using
+Visual Studio's Android deployment or adb:
+
+  adb devices
+  adb -s YOUR_DEVICE_SERIAL install -r "FULL_PATH_TO_SIGNED_APK"
+
+Use an explicitly selected test phone, not another person's attached device.
+The local development signing key is not a production/store signing setup.
+The debug-only native-read instrumentation is not included in Release and is
+not a source of production health data. Emulator fixture reads do not establish
+that a real wearable syncs correctly. No app-store publishing is configured.
+
+Before pairing, use Health Connect's system settings to confirm that the source
+health app has written records and that PulsePal Phone can request access. For
+Samsung, enable the supported Samsung Health -> Health Connect sharing route.
+PulsePal cannot make an unsupported Samsung metric appear in Health Connect.
+
+IPHONE BUILD AND INSTALL
+
+Use PulsePal.Phone.iOS\PulsePal.Phone.iOS.csproj explicitly on an appropriately
+configured Mac with compatible .NET iOS workload / Xcode, Apple signing and a
+provisioning profile with the HealthKit capability. The bundle ID must match
+your registered application; update both ApplicationId and CFBundleIdentifier
+if changing it. See PulsePal.Phone.iOS\PlatformNotes.txt for platform details.
+
+Equivalent build command (adapt path separators to the Mac shell):
+
+  dotnet build .\PulsePal.Phone.iOS\PulsePal.Phone.iOS.csproj -c Release -f net10.0-ios -r ios-arm64
+
+The app declares HealthKit read usage and local-network usage. Allow local
+network access to reach Windows. Native Release JSON/trimming, TLS pinning,
+authorization and record queries still need signed-device validation.
+
+PAIRING AND FIRST SYNC
+
+1. Put Windows and the phone on the same trusted private network. Guest Wi-Fi,
+   client isolation or enterprise network policy may block device-to-device
+   traffic even if both devices display the same Wi-Fi name.
+   On the phone, choose categories and grant the selected health read permissions
+   BEFORE pairing. Android clears local pairing whenever its activity is paused,
+   including when it opens the health permission/policy screen.
+2. Open Connected health from PulsePal's tray menu or companion menu.
+   It opens OFF: no listening socket starts until explicitly requested.
+3. Select the active private IPv4 interface reachable by the phone and a free
+   TCP port (default 47831). Click Start listener. Only that address is bound;
+   the normal UI does not offer wildcard/public/loopback binding.
+4. Copy the one-time pairing JSON to the intended phone by a trusted local
+   transfer method, then paste into PulsePal Phone. This first version uses
+   copy/paste, not a QR scanner. Never send it to a public service or commit it.
+   The payload expires after two minutes; refresh on Windows if necessary.
+5. On the phone, choose Pair. Compare the FULL request ID and expiry displayed
+   on the phone with the selected pending Windows request. The device's name is
+   self-reported, not proof of identity. Approve only a matching request.
+6. Tap Check desktop approval on Android (the equivalent approval action on
+   iPhone). Only the approved requesting client receives a session credential.
+   If the response is lost before receipt, revoke and pair afresh; credentials
+   are not repeatedly delivered or recovered from disk.
+7. Confirm the categories selected in step 1. Android shows actual Health
+   Connect permission state. If more permissions are needed after pairing,
+   grant them, revoke the old session on Windows and pair again. iOS cannot
+   conclusively reveal denied read permission; empty results are not proof.
+8. Tap Sync now. Windows shows each received record's value, unit, original
+   interval, source and separate desktop receipt timestamp. Sync is manual and
+   foreground-only. Background delivery/continuous monitoring is not enabled.
+9. Use Revoke and disconnect or Stop and clear session when finished. Closing
+   the connected-health window stops its listener and discards connected state.
+   Phone-side disconnect clears local credentials; if remote revocation cannot
+   be confirmed, also revoke on Windows.
+
+Keep the phone app in the foreground for the paired session. Leaving it clears
+local credentials and selections; it does not revoke a Windows session while
+backgrounded. On return, revoke the old session on Windows, refresh pairing and
+pair again. The iOS HealthKit authorization sheet only makes the app inactive
+and does not by itself clear the session. No background sync is implied.
+
+PulsePal does not automatically add firewall rules or require elevation.
+If Windows asks for firewall access, follow your organization's policy and allow
+only the trusted private network if appropriate. Do not enable a public-network
+exception or disable the firewall to make pairing work.
+
+READING THE DISPLAY
+
+Missing measurements are not zero. A selected category can report Available,
+NoData, Denied, Unsupported or PermissionNotVerifiable. A missing category is
+Not provided. On iPhone, an empty/unusable query reports PermissionNotVerifiable
+because HealthKit intentionally does not reveal whether read permission was
+denied. Permission-sheet completion does not prove read access was granted.
+
+Every measurement retains its own timestamp. A recent sync of yesterday's
+measurement does not turn it into a current reading. The desktop uses a
+15-minute presentation age label ("Older record (not live)"), not a clinical
+cutoff. Even a recent record is not described as a live sensor stream.
+Phone clock skew is displayed rather than silently restamping measurements.
+
+The latest category status can say NoData/Denied while previously accepted
+measurements remain in the session; these are explicitly historical records.
+There is no automatic deletion reconciliation with HealthKit/Health Connect.
+Delete desktop records removes only the desktop copy and category statuses.
+It cannot delete phone records; another sync may send those records again.
+
+Repeat batches do not duplicate existing source/metric/record identities.
+Higher versions can replace prior records; equal/older versions do not refresh
+the original desktop receipt timestamp. The desktop retains at most 2,048
+records for its single paired phone and evicts the oldest received entries
+when full. It does not aggregate overlapping sources or infer clinical trends.
+
+SECURITY AND PRIVACY MODEL
+
+The listener is explicitly enabled, uses TLS 1.2/1.3 and creates an ephemeral
+certificate with the selected local IP as its subject alternative name. Its
+SHA-256 pin is transferred with the pairing payload; the client verifies that
+exact certificate, its validity/lifetime and host. This deliberately trusts
+the out-of-band pairing identity, not any self-signed certificate. There is no
+unconditional validation callback, cleartext HTTP fallback or redirect follow.
+Clients do not use proxies. Only canonical private IPv4 HTTPS pairing endpoints
+are accepted; loopback is reserved for automated transport tests.
+
+The challenge is random, single-use and short-lived. Explicit desktop approval
+is required before issuing the random session token. Pairing/poll/sync requests
+are rate-limited and bounded. Unauthorized ingestion is rejected before request
+body binding. Strict JSON, explicit metric/unit assumptions and record validation
+reject malformed or implausible payloads; these checks are not medical analysis.
+
+One phone pairs at a time. Session access expires no later than the ephemeral
+certificate (approximately eight hours). Stop and restart for a new certificate.
+Refreshing an unused challenge invalidates pending requests. Revoke removes the
+paired token, records and statuses; refresh the challenge to pair again.
+
+Tokens and health records are held in process memory, not app files or the
+demo's plaintext state.json. Phone processes do not save credentials to settings.
+The receiver suppresses request/payload diagnostics to avoid health/secret logs.
+On Windows, TLS uses a temporary OS key container required by Schannel; it is
+disposed with the certificate and is not installed as a trusted root.
+An abnormal OS/process failure does not guarantee forensic erasure.
+
+Copy pairing payload uses Windows clipboard options disabling history/roaming
+and best-effort ownership-aware cleanup. Manual keyboard/context-menu copy does
+not have those protections. Other clipboard tools, OS paging, crash dumps,
+screenshots and compromised devices are outside the application's guarantees.
+Do not use a cloud clipboard or untrusted chat to transfer pairing material.
+The first prototype does not provide hardware attestation, enterprise identity,
+durable encrypted record storage or production security certification.
+
+API / SOURCE MAP
+
+PulsePal.Connected:
+  HealthRecord, category availability, pairing and sync DTOs.
+  Strict shared JSON and PinnedBridgeClient.
+
+PulsePal.Bridge:
+  BridgeHost owns explicit HTTPS startup/shutdown and the certificate.
+  BridgeService owns approval, tokens and bounded volatile record handling.
+  BridgeValidator validates wire records. Endpoints use safe Problem Details.
+  POST /v1/pairing: consume one challenge and create a pending request.
+  POST /v1/pairing/status: retrieve approval using the request ID + poll secret.
+  POST /v1/records: authenticated bounded idempotent sync.
+  DELETE /v1/session: authenticated revoke and clear.
+  Approval, rejection and desktop reads are in-process only, not LAN endpoints.
+  PulsePal.Bridge.http describes the wire requests with placeholders, not keys.
+  Do not disable certificate checking in an HTTP tool to use those examples.
+  Development-only OpenAPI is available at /openapi/v1.json when the hosting
+  environment is Development. There is no public health-record GET endpoint.
+
+PulsePal.App:
+  ConnectedHealthWindow and AppController.Connected provide the separate UI.
+  The existing demo DI provider, synthetic storage and analysis are unchanged.
+
+PulsePal.Phone.Android / PulsePal.Phone.iOS:
+  Native permission UI and read adapters plus the shared pinned client.
+  No Bluetooth discovery, direct wearable protocol or vendor password scraping.
+
+VALIDATION AND REMAINING DEVICE WORK
+
+Automated tests exercise the actual HTTPS receiver using disposable fixtures:
+pin/host/lifetime rejection, approval, challenge expiry/replay, unauthorized
+requests, strict parsing/size/range limits, concurrency, deduplication, versioned
+updates, timestamps, revocation and volatile cleanup.
+
+  dotnet test .\PulsePal.Tests\PulsePal.Tests.csproj -c Release
+  .\artifacts\PulsePalConnected\PulsePal.App.exe --smoke-test-connected
+
+Connected desktop smoke runs on loopback with isolated demo-state/log paths,
+checks OFF-by-default entry points, HTTPS authorization and close/shutdown
+cleanup. It does not authorize a phone, read a wearable or replace real-device
+acceptance. Existing presentation/full-demo smoke flags remain available.
+
+Before describing this as device-verified, perform the following with consent:
+  - Build/install the intended native Release app on a physical phone.
+  - Confirm source records independently in Health Connect / Apple Health.
+  - Grant and deny each category separately; verify empty/unavailable states.
+  - Complete two-sided pairing with matching request IDs.
+  - Compare actual value, source, units and original timestamp on both devices.
+  - Repeat sync; verify no duplicate/newly timestamped old measurements.
+  - Confirm BP absence is unavailable, never inferred from HR.
+  - Test changed permissions, local-network denial, stale readings and clock skew.
+  - Try incorrect pin, expired challenge, wrong request and desktop revocation.
+  - Close/background during permission/query/upload; confirm no automatic retry.
+  - Test local/remote disconnect while offline and manual Windows revocation.
+  - On iOS, validate linked/AOT Release serialization and pinned TLS on device.
+
+Still future: QR-assisted pairing, Android 9-13 provider compatibility, background
+sync/change tokens/deletion reconciliation, additional vitals, approved Samsung
+SDK metrics, durable protected storage, multiple phones, optional remote relay,
+real-data wellness inference and production packaging/security review.
+
+Official platform references:
+https://developer.android.com/health-and-fitness/health-connect
+https://developer.android.com/reference/android/health/connect/HealthConnectManager
+https://developer.samsung.com/health
+https://developer.apple.com/documentation/healthkit
+https://learn.microsoft.com/dotnet/ios/

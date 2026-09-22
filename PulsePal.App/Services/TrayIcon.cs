@@ -53,7 +53,7 @@ public sealed class TrayIcon : IDisposable
 
     /// <param name="command">
     /// Called on the owning UI thread with show, presenter, story, meet, profile,
-    /// focus, breathing, screen-break, water-break, stretch-break, controls, or exit.
+    /// focus, breathing, screen-break, water-break, stretch-break, controls, connected, or exit.
     /// </param>
     public TrayIcon(Action<string> command)
     {
@@ -305,8 +305,9 @@ public sealed class TrayIcon : IDisposable
         uint selection = 0;
         try
         {
-            AppendMenu(1, "Show companion");
-            AppendMenu(10, "Open presenter");
+            AppendMenu(13, "Connect phone / Real health records");
+            AppendMenu(1, "Show companion · Demo");
+            AppendMenu(10, "Open presenter · Demo");
             AppendMenu(11, "Session story");
             AppendMenu(12, $"Meet {_companionName.Replace("&", "&&")}");
             AppendMenu(6, "Profile && preferences");
@@ -371,6 +372,7 @@ public sealed class TrayIcon : IDisposable
             10 => "presenter",
             11 => "story",
             12 => "meet",
+            13 => "connected",
             _ => null
         };
         if (command is not null)

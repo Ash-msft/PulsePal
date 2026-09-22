@@ -1,6 +1,16 @@
 PULSEPAL - AI WELLNESS & PRODUCTIVITY COMPANION
 Complete Project Brief, Implementation Record and Future Roadmap
-Documentation date: 21 September 2026
+Documentation date: 22 September 2026
+
+FEATURE-BRANCH ADDENDUM: feature/phone-health-sync now contains a separate,
+opt-in phone-health prototype. Native Android 14+ Health Connect (including
+compatible Samsung phones) and iPhone HealthKit adapters can request heart-rate
+and actual blood-pressure records for manual foreground sync to a paired Windows
+receiver. This does not replace the synthetic demo described below, and the
+demo's wellness scores never use connected records. Stress is unsupported in
+the phone prototype; BP requires actual source measurements. Signed iPhone and
+physical wearable validation remain necessary. See section 25 and
+ConnectedHealth.txt for precise scope, platform prerequisites and limitations.
 
 Tagline:
 "Your desktop knows what you're doing. PulsePal knows how you're feeling."
@@ -61,7 +71,7 @@ for presentations and engineering work.
 3. WHAT HAS BEEN CREATED
 ===============================================================================
 
-The workspace contains four projects:
+The offline demo contains four projects (connected additions are in section 25):
 
 PulsePal.App
   The Windows application: tray integration, animated companion popup, MVVM
@@ -874,9 +884,10 @@ not a finished medical or enterprise monitoring product.
 
 A. Live wearable adapters
    Implement Garmin/Oura integrations where approved access exists; investigate
-   Fitbit, Samsung Health or Apple Health-compatible import/sync routes. Some
-   ecosystems may require a companion mobile app or vendor partnership. Add
-   permissions, authentication, freshness indicators and source-specific units.
+   Fitbit and approved proprietary vendor metrics. A first phone-based
+   Health Connect / HealthKit snapshot route is now on the connected feature
+   branch (section 25), but background sync, broader metric coverage, physical
+   wearable validation and vendor-specific access remain future work.
 
 B. Opt-in real work context
    Add explicit-consent calendar/task integration, foreground application and
@@ -939,5 +950,51 @@ and the ability to run the full demonstration without external services.
 The central idea is not to maximize work at any cost. It is to make focused work
 and deliberate recovery part of the same supportive desktop experience, while
 keeping the person informed and in control.
+
+===============================================================================
+25. CONNECTED PHONE HEALTH - SEPARATE FEATURE-BRANCH PROTOTYPE
+===============================================================================
+
+The existing offline demo remains intact on main. Development of actual
+phone-health access is isolated on feature/phone-health-sync.
+
+Four additional projects:
+  PulsePal.Connected: shared real-record contracts, strict JSON, validated
+    pairing payload and certificate-pinned foreground HTTP client.
+  PulsePal.Bridge: explicit HTTPS listener, expiring one-time challenge,
+    desktop approval, session authentication and bounded volatile record store.
+  PulsePal.Phone.Android: native read-only Android 14+ Health Connect client.
+    Samsung Health must actually share supported records into Health Connect.
+  PulsePal.Phone.iOS: native UIKit / HealthKit client. Native Release deployment
+    requires compatible Mac/Xcode, provisioning and HealthKit entitlement.
+
+The tray and companion menu can open Connected health without starting a
+listener. Users choose a trusted private IPv4 interface and explicitly start it.
+The phone receives a short-lived pairing payload by private copy/paste. Both
+screens show a request ID that must match before desktop approval. The phone
+then requests selected read permissions and offers manual Sync now.
+
+Heart rate is shown in bpm; BP retains an actual paired systolic/diastolic
+measurement in mmHg. Each record preserves its original timestamp and source,
+separate from desktop receipt time. Missing/denied/unsupported/older records
+are explicit. iOS read denial is intentionally not inferable from empty data.
+No stress, fatigue, readiness or burnout score is derived from phone records.
+
+Connected records and credentials are session-only and not saved in the
+ordinary demo JSON history. Revocation or closing/stopping the listener clears
+the session. Delete desktop records does not delete anything on the phone.
+The listener is not enabled automatically, no firewall rules are added, and no
+cloud account or vendor password is required. Same-network reachability still
+depends on Windows firewall and the network's device-isolation policy.
+
+This is a manual snapshot integration, not real-time wearable telemetry.
+Neither source code nor automated loopback/emulator fixtures prove physical
+wearable operation. The iOS native build/sign/device workflow must be completed
+on an appropriately configured Mac. Proprietary Samsung stress, older Android
+provider compatibility, background sync, deletion reconciliation, cloud relay,
+QR scanning and medically meaningful inference are not implemented.
+
+ConnectedHealth.txt provides exact commands, pairing/security details, retention
+limits and the remaining physical-device acceptance checklist.
 
 END OF PROJECT BRIEF

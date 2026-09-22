@@ -1,0 +1,167 @@
+PulsePal Phone - native UIKit / .NET 10 iOS
+
+MANAGED SOURCES COMPILED ON WINDOWS (2026-09-22); native app NOT built.
+Main integration compiled the current Release sources against the installed
+.NET iOS bindings using:
+  dotnet msbuild .\PulsePal.Phone.iOS\PulsePal.Phone.iOS.csproj -restore -t:Compile -p:_IsHotRestartBuild=false -p:Configuration=Release -nologo -v:minimal
+This does not perform native AOT/linking, signing, installation or device testing.
+No Mac/Xcode is available. No new workload, simulator or tool was installed.
+Native support/deployment is NOT verified. The legacy UIWindow constructor
+produces CA1422 for iOS 26 deprecation; scenes remain a follow-up requirement.
+
+Build this project explicitly; no solution, desktop, cloud, or demo integration is
+included. Uses the existing shared PulsePal.Connected.PinnedBridgeClient API:
+  .ctor(string), IsPaired, RequestPairingAsync(string, CancellationToken),
+  PollApprovalAsync(CancellationToken), SyncAsync(SyncRecordsRequest,
+  CancellationToken), DisconnectAsync(CancellationToken), IDisposable.
+No replacement client or backend is implemented here.
+
+Real device deployment requires a Mac, an Xcode version supported by the installed
+.NET iOS workload, Apple signing credentials and a provisioning profile with the
+HealthKit capability for com.pulsepal.phone (change both ApplicationId and
+CFBundleIdentifier if using a different registered bundle ID).
+Example on an appropriately configured Mac:
+  dotnet build PulsePal.Phone.iOS\PulsePal.Phone.iOS.csproj -f net10.0-ios -r ios-arm64
+Run the platform-appropriate equivalent path syntax on macOS.
+Windows binding checks are not native compilation, deployment, signing, or proof
+of device behavior. No background modes or HealthKit background delivery are used.
+
+Source and managed-binding validation:
+Reviewed native reader, controller, UIApplicationDelegate, shared contracts and
+the real pinned client, plus the bridge's read-only validation rules. Both plist
+files and the project parse as XML. No automated iOS test suite exists here.
+The project declares iOS 16.0 minimum and arm64; Info.plist allows iPhone/iPad.
+HealthKit availability is checked at runtime (iPad HealthKit requires iPadOS 17).
+No UI scene manifest is supplied: the existing single-window UIApplicationDelegate
+owns activation/background callbacks. Its legacy UIWindow constructor is
+deprecated on iOS 26; migrate to scenes before targeting an OS that requires them.
+Inactive snapshots are covered; actual background entry clears the session.
+Do not clear the session just because the HealthKit authorization sheet makes
+the app inactive. Activation removes the cover but never starts a sync.
+
+Release JSON / trimming
+ConnectedJson and PinnedBridgeClient use reflection-based System.Text.Json.
+The project retains JsonSerializerIsReflectionEnabledByDefault=true and
+TrimmerRootAssembly Include="PulsePal.Connected", preserving shared DTOs and
+their members/constructors for serialization. Trimming is not globally disabled.
+These settings are source configuration, not proof of release AOT behavior.
+Verify pairing/status/sync JSON on a signed,
+linked Release device build, including enum and record deserialization.
+
+Networking / TLS
+The shared client owns SocketsHttpHandler, mandatory HTTPS certificate pinning,
+pairing validation and in-memory token storage. UseNativeHttpHandler=false keeps
+managed HTTP available; never substitute a native handler that ignores its pin.
+Info.plist supplies NSLocalNetworkUsageDescription. The user must allow local
+network access; there is no Bonjour discovery, and no NSBonjourServices entry.
+No NSAppTransportSecurity exception is included: the specified managed socket
+transport does not need a URL Loading System ATS override. A self-signed pin is
+not a reason to enable NSAllowsArbitraryLoads or bypass TLS validation.
+If a future, separately verified native transport needs a local ATS exemption,
+use only NSAppTransportSecurity -> NSAllowsLocalNetworking=true (unqualified and
+.local names / OS-specific local IP handling), after testing on the target OS.
+That key is not a certificate-trust override, does not grant local-network
+permission, and does not relax ATS for arbitrary public hostnames. Switching
+transport requires revalidating certificate pinning; it is not supported here.
+Endpoint reachability, local-network prompts and pinned TLS need physical-device
+testing with the lead's desktop bridge.
+
+HealthKit / privacy
+Only HeartRate, BloodPressureSystolic and BloodPressureDiastolic read types are
+requested, with an empty write set. No NSHealthUpdateUsageDescription is needed.
+Blood pressure is queried as BloodPressure correlations, never fabricated from
+independent quantities. HR uses Count/Minute (bpm); BP uses mmHg. The bounded
+queries select complete original intervals within 24 hours / 7 days, descending
+by start date, maximum 128 samples per metric. Sample/correlation UUIDs and a
+stable version 1 preserve identity for immutable HealthKit samples. SourceApp
+includes real source name, bundle ID and source revision version; SourceDevice
+is the optional HealthKit device name. No stress data is supported or inferred.
+HR's sampletimestamp is represented by the existing HealthRecord.MeasuredAt
+field (HealthKit StartDate, UTC), with EndAt from EndDate. Rereading the SAME
+HR sample preserves UUID, timestamp, source and version; query/upload time is
+never substituted. The shared desktop key remains SourceApp/Metric/RecordId;
+no alternate timestamp key, DTO field or public interface was introduced.
+HealthKit replacement samples have new UUIDs, not fabricated update revisions.
+HKSampleQuery uses the correlation type for BP; each correlation must contain
+exactly one readable systolic and diastolic quantity. Independent measurements
+are never paired by timestamp. Invalid intervals, non-finite/non-positive
+values, values outside the shared wire limit (1000), incompatible units or
+metadata violating the bridge's length/Unicode rules are skipped. Blank device
+names become null. The wire limit is not a medical plausibility assessment.
+An empty usable result remains permission-not-verifiable, never a zero reading.
+Native execution and callback/cancellation lifetimes still need device testing.
+
+RequestAuthorization completion does NOT establish read permission. Empty or
+unusable selected results report PermissionNotVerifiable, not denial, granted
+permission, or a zero measurement. Unavailable HealthKit reports Unsupported.
+Sync now queries selected categories independently. Each has a visible read and
+upload result. A category query failure is displayed locally and omitted from
+the upload; the other category may still succeed. No shared Error enum is
+invented and errors are not reported as denial, empty data or unsupported.
+Known native/binding errors become sanitized HealthKitReadException instances.
+The UI operation boundary sanitizes other task failures without native, server,
+identifier, credential or measurement text being displayed/logged.
+Cancellation stops active HK queries. Apple's authorization sheet has no cancel
+API; cancelling stops the managed wait and ignores its eventual result.
+Another authorization request is rejected while that native sheet is still
+outstanding. Querying never uses write-authorization status to infer read access.
+Backgrounding cancels work, disposes the pinned client, clears pairing input,
+pending GUID/expiry, category selections and result labels. Returning requires
+fresh pairing. Late continuations check cancellation and cannot restore an old
+session or its results. A batch already received by the desktop cannot be
+retracted, and remote revocation is NOT attempted in the background. Explicitly
+revoke the old session on the desktop. No automatic retries or background sync.
+
+After requesting pairing, a dedicated label shows the full request GUID and
+absolute UTC expiry returned by the shared client. Compare the entire GUID
+with the desktop before approving; the phone never displays the poll secret.
+The label is independent of operation status, so Working, a pending poll,
+cancellation and connection errors do not erase it. Approval, rejection,
+expiry confirmed by polling, or disconnect clears the pending label.
+Background entry also clears it. The paste size limit matches the shared
+parser's 8192-character limit; device names are bounded to its 80-character
+limit with control characters removed.
+
+Pairing JSON, approved tokens and measurements are never written to preferences,
+files, a database, or logs by this application. Disconnect always discards local
+credentials and category results, even if cancelled/offline; if remote revocation
+fails the UI directs the user to revoke on the desktop. Process termination
+loses the pairing. The UI masks inactive snapshots.
+Clipboard paste is explicit; the system clipboard belongs to the user and is
+not cleared or persisted by this app. Managed string memory cannot be guaranteed
+to be zeroed. Reader and upload record arrays/lists release their record
+references after use, cancellation or failure; no health history is cached in
+the controller. This is logical session cleanup, NOT secure memory erasure:
+native HealthKit storage, immutable strings, shared HTTP serialization buffers
+and already-delivered desktop records are not wiped by this app. No HealthKit
+deletion reconciliation or durable sync queue exists.
+
+Physical-device acceptance checks (not verified on Windows):
+1. Fresh pair -> compare full GUID and UTC expiry with desktop -> approve ->
+   manual poll -> selected-category sync. Pending details must survive Working,
+   repeated pending polls, cancellation and offline errors; terminal pairing
+   states and disconnect must clear them. Do not approve mismatching GUIDs.
+2. Tampered pin, expired/rejected pair, LAN denial, desktop offline.
+3. Health access allowed, denied, changed in Settings, and empty Health store.
+   Empty data must never be labelled denied or granted.
+4. Correlated BP only (one component each); source, UUID, dates and unit values
+   match Health samples; repeat HR sync preserves its sampletimestamp and key;
+   repeat sync stays idempotent; no category returns more than 128 samples.
+5. Cancel/background during authorization, query, approval poll and upload;
+   no automatic resumption or stale result display. Background and foreground
+   again before callbacks complete: credentials/results must remain cleared.
+   Authorization sheet inactivity alone must NOT disconnect the session.
+6. Disconnect offline or cancel disconnect: local access/results clear and the
+   UI warns about unconfirmed remote revocation.
+7. Fail HR while BP succeeds, and vice versa: failed category reports its error,
+   successful category still uploads. Fail upload after successful reads: each
+   category says upload unconfirmed, never acknowledged.
+
+Binding reference (managed compilation only, not native deployment validation):
+Microsoft.iOS.Ref.net10.0_26.5 / 26.5.10301 / ref/net10.0/Microsoft.iOS.xml
+Official references:
+https://developer.apple.com/documentation/healthkit/hkhealthstore
+https://developer.apple.com/documentation/healthkit/hksamplequery
+https://developer.apple.com/documentation/healthkit/hkcorrelation
+https://developer.apple.com/documentation/bundleresources/information-property-list/nsapptransportsecurity/nsallowslocalnetworking
+https://learn.microsoft.com/dotnet/ios/building-apps/build-properties

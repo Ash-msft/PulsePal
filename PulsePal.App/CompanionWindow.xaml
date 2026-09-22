@@ -10,12 +10,14 @@
                 <StackPanel Spacing="10">
                     <Grid>
                         <StackPanel>
-                            <TextBlock Text="P U L S E P A L" FontSize="12" Foreground="#70E4FF" FontWeight="SemiBold"/>
+                            <TextBlock Text="P U L S E P A L · Demo" FontSize="12" Foreground="#70E4FF" FontWeight="SemiBold"/>
                             <TextBlock x:Name="CompanionIdentity" Text="{x:Bind ViewModel.CompanionIdentity, Mode=OneWay}" FontSize="11" Foreground="#9AAEC9" Margin="0,4,40,0" TextWrapping="Wrap"/>
                         </StackPanel>
                         <Button Content="···" HorizontalAlignment="Right" Padding="10,0" MinHeight="30" AutomationProperties.Name="Companion menu">
                             <Button.Flyout>
                                 <MenuFlyout>
+                                    <MenuFlyoutItem Text="Connect phone / Real health records" Command="{x:Bind ViewModel.ShowConnectedHealthCommand}"/>
+                                    <MenuFlyoutSeparator/>
                                     <MenuFlyoutItem Text="A day with PulsePal…" Command="{x:Bind ViewModel.ShowPresenterCommand}"/>
                                     <MenuFlyoutItem Text="Comparison &amp; Session story" Command="{x:Bind ViewModel.ShowStoryCommand}"/>
                                     <MenuFlyoutItem Text="{x:Bind ViewModel.MeetText, Mode=OneWay}" Command="{x:Bind ViewModel.MeetCommand}"/>

@@ -26,6 +26,7 @@ public sealed class CompanionViewModel : ObservableObject, IDisposable
     public IRelayCommand ShowStoryCommand { get; }
     public IRelayCommand MeetCommand { get; }
     public IRelayCommand ShowControlsCommand { get; }
+    public IRelayCommand ShowConnectedHealthCommand { get; }
     public IRelayCommand ShowProfileCommand { get; }
     public IRelayCommand ExitCommand { get; }
     public IRelayCommand ToggleFocusCommand { get; }
@@ -45,6 +46,7 @@ public sealed class CompanionViewModel : ObservableObject, IDisposable
         ShowStoryCommand = new RelayCommand(controller.ShowSessionStory);
         MeetCommand = new RelayCommand(controller.MeetCompanion);
         ShowControlsCommand = new RelayCommand(controller.ShowControls);
+        ShowConnectedHealthCommand = new RelayCommand(controller.ShowConnectedHealth);
         ShowProfileCommand = new RelayCommand(controller.ShowProfile);
         ExitCommand = new RelayCommand(controller.RequestExit);
         ToggleFocusCommand = new RelayCommand(controller.ToggleFocus,
